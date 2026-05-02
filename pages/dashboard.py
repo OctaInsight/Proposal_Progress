@@ -33,8 +33,19 @@ if not proposals:
 
 df = pd.DataFrame(proposals)
 
+def _to_num(series):
+    """Strip €, £, $, %, commas then coerce to float — handles any format."""
+    return (
+        series.astype(str)
+              .str.replace(r"[€£$%,\s]", "", regex=True)
+              .str.strip()
+              .pipe(pd.to_numeric, errors="coerce")
+              .fillna(0)
+    )
+
 for col in ["octa_budget", "total_budget", "success_rate", "duration_months"]:
-    df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+    if col in df.columns:
+        df[col] = _to_num(df[col])
 
 # Pre-compute totals
 total_portfolio   = df["total_budget"].sum()
@@ -51,6 +62,10 @@ status_colors = {
 }
 
 def fmt_eur(v):
+    try:
+        v = float(v)
+    except Exception:
+        return "€0"
     if v >= 1_000_000:
         return f"€{v/1_000_000:.2f}M"
     if v >= 1_000:
@@ -147,48 +162,63 @@ with ch1:
 
 with ch2:
     section_label("Total Budget vs Octa Budget (€)")
-    cmp_df = df[df["total_budget"] > 0].copy()
-    cmp_df["label"] = cmp_df["acronym"].where(
-        cmp_df["acronym"].str.strip() != "",
-        cmp_df["proposal_title"].str[:20]
+    # Use ALL proposals - fall back to proposal_id label if acronym empty
+    cmp_df = df.copy()
+    cmp_df["label"] = cmp_df.apply(
+        lambda r: (r["acronym"].strip()
+                   if str(r.get("acronym","")).strip()
+                   else str(r.get("proposal_id",""))[:18]),
+        axis=1
     )
     cmp_df = cmp_df.sort_values("total_budget", ascending=True)
 
-    fig_cmp = go.Figure()
-    fig_cmp.add_trace(go.Bar(
-        name="Total Budget",
-        x=cmp_df["total_budget"],
-        y=cmp_df["label"],
-        orientation="h",
-        marker=dict(color=D["accent"], opacity=0.85, line=dict(width=0)),
-        hovertemplate="<b>%{y}</b><br>Total: €%{x:,.0f}<extra></extra>",
-    ))
-    fig_cmp.add_trace(go.Bar(
-        name="Octa Budget",
-        x=cmp_df["octa_budget"],
-        y=cmp_df["label"],
-        orientation="h",
-        marker=dict(color=D["accent2"], opacity=0.95, line=dict(width=0)),
-        hovertemplate="<b>%{y}</b><br>Octa: €%{x:,.0f}<extra></extra>",
-    ))
-    fig_cmp.update_layout(
-        barmode="overlay",
-        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        height=CHART_H,
-        margin=dict(l=0, r=10, t=28, b=0),
-        font_color=D["text"],
-        legend=dict(
-            orientation="h", yanchor="bottom", y=1.01,
-            xanchor="right", x=1,
-            font=dict(color=D["text"], size=11),
-            bgcolor="rgba(0,0,0,0)",
-        ),
-        xaxis=dict(
-            showgrid=True, gridcolor="rgba(255,255,255,0.05)",
-            tickprefix="€", tickformat=",.0f",
-        ),
-        yaxis=dict(showgrid=False, tickfont=dict(size=9)),
-    )
+    has_budget = (cmp_df["total_budget"] > 0).any()
+
+    if not has_budget:
+        st.markdown(
+            f"<div style='color:{D['muted']};padding:2rem;text-align:center;"
+            f"background:{D['bg2']};border-radius:10px;height:{CHART_H}px;"
+            f"display:flex;align-items:center;justify-content:center'>"
+            f"Budget data not yet synced. Open each proposal and save to populate.</div>",
+            unsafe_allow_html=True
+        )
+    else:
+        fig_cmp = go.Figure()
+        fig_cmp.add_trace(go.Bar(
+            name="Total Budget",
+            x=cmp_df["total_budget"],
+            y=cmp_df["label"],
+            orientation="h",
+            marker=dict(color=D["accent"], opacity=0.85, line=dict(width=0)),
+            hovertemplate="<b>%{y}</b><br>Total: €%{x:,.0f}<extra></extra>",
+        ))
+        fig_cmp.add_trace(go.Bar(
+            name="Octa Budget",
+            x=cmp_df["octa_budget"],
+            y=cmp_df["label"],
+            orientation="h",
+            marker=dict(color=D["accent2"], opacity=0.95, line=dict(width=0)),
+            hovertemplate="<b>%{y}</b><br>Octa: €%{x:,.0f}<extra></extra>",
+        ))
+        fig_cmp.update_layout(
+            barmode="overlay",
+            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+            height=CHART_H,
+            margin=dict(l=0, r=10, t=28, b=0),
+            font_color=D["text"],
+            legend=dict(
+                orientation="h", yanchor="bottom", y=1.01,
+                xanchor="right", x=1,
+                font=dict(color=D["text"], size=11),
+                bgcolor="rgba(0,0,0,0)",
+            ),
+            xaxis=dict(
+                showgrid=True, gridcolor="rgba(255,255,255,0.05)",
+                tickprefix="€", tickformat=",.0f",
+            ),
+            yaxis=dict(showgrid=False, tickfont=dict(size=9)),
+        )
+        st.plotly_chart(fig_cmp, use_container_width=True)
 
 # ── Deadline timeline ─────────────────────────────────────────────────────────
 section_label("Upcoming Deadlines")
