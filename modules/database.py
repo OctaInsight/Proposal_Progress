@@ -79,7 +79,28 @@ def _safe_date(v):
 
 
 def row_to_db(row: dict) -> dict:
-    """Convert flat Google Sheet row → DB-shaped dict."""
+    """
+    Convert flat Google Sheet row → DB-shaped dict.
+    Handles column name variants between old sheet headers and the
+    standardised names used by the app (case-insensitive aliases).
+    Also strips €, £, $, % signs so numeric fields parse cleanly.
+    """
+
+    def _pick(*keys):
+        """Return first non-empty value found across the given key aliases."""
+        for k in keys:
+            v = row.get(k, "")
+            if v and str(v).strip():
+                return str(v).strip()
+        return ""
+
+    def _num(*keys):
+        """Parse first matching key as a number, stripping currency/% symbols."""
+        raw = _pick(*keys)
+        cleaned = raw.replace("€","").replace("£","").replace("$","") \
+                     .replace("%","").replace(",","").strip()
+        return _safe_num(cleaned)
+
     # Collect all "Partner N" / "Associated N" columns dynamically — no limit
     partners, associates, i = [], [], 1
     while f"Partner {i}" in row:
@@ -89,36 +110,52 @@ def row_to_db(row: dict) -> dict:
     while f"Associated {i}" in row:
         associates.append(row.get(f"Associated {i}", ""))
         i += 1
+
     return {
-        "proposal_id":        str(row.get("Proposal ID", "")).strip(),
-        "action_tamer":       row.get("Action: Tamer",          ""),
-        "action_yasin":       row.get("Action: Yasin",          ""),
-        "action_haseeb":      row.get("Action: Haseeb",         ""),
-        "action_other":       row.get("Action: Other",          ""),
-        "comment":            row.get("Comment",                 ""),
-        "pes_fund_request":   row.get("PES Fund Request",       ""),
-        "status":             row.get("Status",            "Planned"),
-        "octa_budget":        _safe_num(row.get("Octa Budget (EUR)",   0)),
-        "total_budget":       _safe_num(row.get("Total Budget (EUR)",  0)),
-        "link_cloudearti":    row.get("Link to CloudEARTHi",    ""),
-        "success_rate":       _safe_num(row.get("Success Rate (%)",    0)),
-        "duration_months":    int(_safe_num(row.get("Duration (months)", 0))),
-        "mandate_letter":     row.get("Mandate/Support Letter", ""),
-        "responsible_person": row.get("Responsible Person",     ""),
-        "main_writer":        row.get("Main Writer",            ""),
-        "form_id":            row.get("Form ID",                ""),
-        "submission_id":      row.get("Submission ID",          ""),
-        "acronym":            row.get("Acronym",                ""),
-        "proposal_title":     row.get("Proposal Title",         ""),
-        "call":               row.get("Call",                   ""),
-        "topic":              row.get("Topic",                  ""),
-        "type_of_action":     row.get("Type of Action",         ""),
-        "link_to_call":       row.get("Link to Call",           ""),
-        "google_drive_link":  row.get("Google Drive Link",      ""),
-        "deadline":           _safe_date(row.get("Deadline")),
-        "submission_date":    _safe_date(row.get("Submission Date")),
-        "announcement_date":  _safe_date(row.get("Announcement Date")),
-        "coordinator":        row.get("Coordinator",            ""),
+        "proposal_id":        str(_pick("Proposal ID")).strip(),
+        "action_tamer":       _pick("Action: Tamer"),
+        "action_yasin":       _pick("Action: Yasin"),
+        "action_haseeb":      _pick("Action: Haseeb"),
+        "action_other":       _pick("Action: Other"),
+        "comment":            _pick("Comment"),
+        # PES — sheet uses "PES fund request" (lowercase r)
+        "pes_fund_request":   _pick("PES Fund Request", "PES fund request",
+                                    "PES Fund request"),
+        "status":             _pick("Status") or "Planned",
+        # Budget — sheet omits "(EUR)", also strip € if present
+        "octa_budget":        _num("Octa Budget (EUR)", "Octa Budget",
+                                   "octa_budget"),
+        "total_budget":       _num("Total Budget (EUR)", "Total Budget",
+                                   "total_budget"),
+        "link_cloudearti":    _pick("Link to CloudEARTHi"),
+        # Success rate — sheet has typo "Sucess Rate" and may include %
+        "success_rate":       _num("Success Rate (%)", "Sucess Rate",
+                                   "Success Rate", "success_rate"),
+        # Duration — sheet omits "(months)"
+        "duration_months":    int(_num("Duration (months)", "Duration",
+                                       "duration_months") or 0),
+        # Support letter — sheet uses "Support letter"
+        "mandate_letter":     _pick("Mandate/Support Letter", "Support letter",
+                                    "Support Letter", "Mandate letter"),
+        "responsible_person": _pick("Responsible Person"),
+        # Main writer — sheet uses "Main Writer Person"
+        "main_writer":        _pick("Main Writer", "Main Writer Person",
+                                    "Main writer person"),
+        "form_id":            _pick("Form ID"),
+        "submission_id":      _pick("Submission ID"),
+        "acronym":            _pick("Acronym"),
+        "proposal_title":     _pick("Proposal Title"),
+        "call":               _pick("Call"),
+        "topic":              _pick("Topic"),
+        "type_of_action":     _pick("Type of Action"),
+        # Link to call — sheet uses lowercase "link to call"
+        "link_to_call":       _pick("Link to Call", "link to call",
+                                    "Link to the Call"),
+        "google_drive_link":  _pick("Google Drive Link"),
+        "deadline":           _safe_date(_pick("Deadline")),
+        "submission_date":    _safe_date(_pick("Submission Date")),
+        "announcement_date":  _safe_date(_pick("Announcement Date")),
+        "coordinator":        _pick("Coordinator"),
         "partners_list":      [p for p in partners   if p],
         "associates_list":    [a for a in associates if a],
     }
