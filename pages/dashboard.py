@@ -120,8 +120,10 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ── Charts — row 1: Status + Octa Budget per project ─────────────────────────
+# ── Charts — Status + Budget comparison side by side ─────────────────────────
 ch1, ch2 = st.columns(2)
+
+CHART_H = 280   # shared fixed height for both charts
 
 with ch1:
     section_label("Proposals by Status")
@@ -134,7 +136,7 @@ with ch1:
     )
     fig_status.update_layout(
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        showlegend=False, height=300,
+        showlegend=False, height=CHART_H,
         margin=dict(l=0, r=10, t=10, b=0),
         font_color=D["text"],
         xaxis=dict(gridcolor="rgba(255,255,255,0.05)"),
@@ -144,89 +146,49 @@ with ch1:
     st.plotly_chart(fig_status, use_container_width=True)
 
 with ch2:
-    section_label("Octa Budget per Project (€)")
-    ob_df = df[df["octa_budget"] > 0].copy()
-    ob_df["label"] = ob_df["acronym"].where(
-        ob_df["acronym"].str.strip() != "",
-        ob_df["proposal_title"].str[:22]
+    section_label("Total Budget vs Octa Budget (€)")
+    cmp_df = df[df["total_budget"] > 0].copy()
+    cmp_df["label"] = cmp_df["acronym"].where(
+        cmp_df["acronym"].str.strip() != "",
+        cmp_df["proposal_title"].str[:20]
     )
-    ob_df = ob_df.sort_values("octa_budget", ascending=True)
-    ob_df["budget_fmt"] = ob_df["octa_budget"].apply(fmt_eur)
+    cmp_df = cmp_df.sort_values("total_budget", ascending=True)
 
-    fig_octa = go.Figure(go.Bar(
-        x=ob_df["octa_budget"],
-        y=ob_df["label"],
+    fig_cmp = go.Figure()
+    fig_cmp.add_trace(go.Bar(
+        name="Total Budget",
+        x=cmp_df["total_budget"],
+        y=cmp_df["label"],
         orientation="h",
-        marker=dict(
-            color=ob_df["octa_budget"],
-            colorscale=[[0, D["sidebar"]], [0.5, D["accent"]], [1, D["accent2"]]],
-            showscale=False,
-            line=dict(width=0),
-        ),
-        text=ob_df["budget_fmt"],
-        textposition="outside",
-        textfont=dict(color=D["text"], size=10),
-        hovertemplate="<b>%{y}</b><br>Octa Budget: €%{x:,.0f}<extra></extra>",
+        marker=dict(color=D["accent"], opacity=0.85, line=dict(width=0)),
+        hovertemplate="<b>%{y}</b><br>Total: €%{x:,.0f}<extra></extra>",
     ))
-    fig_octa.update_layout(
+    fig_cmp.add_trace(go.Bar(
+        name="Octa Budget",
+        x=cmp_df["octa_budget"],
+        y=cmp_df["label"],
+        orientation="h",
+        marker=dict(color=D["accent2"], opacity=0.95, line=dict(width=0)),
+        hovertemplate="<b>%{y}</b><br>Octa: €%{x:,.0f}<extra></extra>",
+    ))
+    fig_cmp.update_layout(
+        barmode="overlay",
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-        height=max(300, len(ob_df) * 26),
-        margin=dict(l=0, r=80, t=10, b=0),
+        height=CHART_H,
+        margin=dict(l=0, r=10, t=28, b=0),
         font_color=D["text"],
+        legend=dict(
+            orientation="h", yanchor="bottom", y=1.01,
+            xanchor="right", x=1,
+            font=dict(color=D["text"], size=11),
+            bgcolor="rgba(0,0,0,0)",
+        ),
         xaxis=dict(
             showgrid=True, gridcolor="rgba(255,255,255,0.05)",
             tickprefix="€", tickformat=",.0f",
         ),
-        yaxis=dict(showgrid=False),
+        yaxis=dict(showgrid=False, tickfont=dict(size=9)),
     )
-    st.plotly_chart(fig_octa, use_container_width=True)
-
-# ── Charts — row 2: Total vs Octa budget comparison ──────────────────────────
-section_label("Total Budget vs Octa Budget — Side by Side (€)")
-
-cmp_df = df[df["total_budget"] > 0].copy()
-cmp_df["label"] = cmp_df["acronym"].where(
-    cmp_df["acronym"].str.strip() != "",
-    cmp_df["proposal_title"].str[:22]
-)
-cmp_df = cmp_df.sort_values("total_budget", ascending=True)
-
-fig_cmp = go.Figure()
-fig_cmp.add_trace(go.Bar(
-    name="Total Budget",
-    x=cmp_df["total_budget"],
-    y=cmp_df["label"],
-    orientation="h",
-    marker=dict(color=D["accent"], opacity=0.85, line=dict(width=0)),
-    hovertemplate="<b>%{y}</b><br>Total: €%{x:,.0f}<extra></extra>",
-))
-fig_cmp.add_trace(go.Bar(
-    name="Octa Budget",
-    x=cmp_df["octa_budget"],
-    y=cmp_df["label"],
-    orientation="h",
-    marker=dict(color=D["accent2"], opacity=0.9, line=dict(width=0)),
-    hovertemplate="<b>%{y}</b><br>Octa: €%{x:,.0f}<extra></extra>",
-))
-fig_cmp.update_layout(
-    barmode="overlay",
-    paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-    height=max(320, len(cmp_df) * 26),
-    margin=dict(l=0, r=20, t=10, b=0),
-    font_color=D["text"],
-    legend=dict(
-        orientation="h", yanchor="bottom", y=1.01,
-        xanchor="right", x=1,
-        font=dict(color=D["text"]),
-        bgcolor="rgba(0,0,0,0)",
-    ),
-    xaxis=dict(
-        showgrid=True, gridcolor="rgba(255,255,255,0.05)",
-        tickprefix="€", tickformat=",.0f",
-    ),
-    yaxis=dict(showgrid=False),
-)
-st.plotly_chart(fig_cmp, use_container_width=True)
 
 # ── Deadline timeline ─────────────────────────────────────────────────────────
 section_label("Upcoming Deadlines")
