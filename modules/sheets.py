@@ -165,10 +165,12 @@ def _db_to_sheet_row(p: dict) -> list:
         str(p.get("comment",              "")),
         str(p.get("pes_fund_request",     "")),
         str(p.get("status",               "")),
-        str(p.get("octa_budget",           0)),
-        str(p.get("total_budget",          0)),
+        # Budget — written with € sign so sheet displays correctly
+        f"€{float(p.get('octa_budget', 0) or 0):,.2f}",
+        f"€{float(p.get('total_budget', 0) or 0):,.2f}",
         str(p.get("link_cloudearti",      "")),
-        str(p.get("success_rate",          0)),
+        # Success rate — written with % sign
+        f"{float(p.get('success_rate', 0) or 0):.2f}%",
         str(p.get("duration_months",       0)),
         str(p.get("mandate_letter",       "")),
         str(p.get("responsible_person",   "")),
