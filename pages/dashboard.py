@@ -194,11 +194,14 @@ for _, row in filtered.iterrows():
             st.markdown(f"**Deadline:** {ddl or '—'}")
             st.markdown(f"**Duration:** {int(row.get('duration_months',0))} months")
         with oc3:
-            st.markdown(f"**Octa Budget:** €{float(row.get('octa_budget',0)):,.0f}")
-            st.markdown(f"**Total Budget:** €{budget:,.0f}")
+            st.markdown(f"**Octa Budget:** €{float(row.get('octa_budget',0) or 0):,.2f}")
+            st.markdown(f"**Total Budget:** €{float(budget or 0):,.2f}")
         with oc4:
             st.markdown(f"**Responsible:** {row.get('responsible_person','—')}")
             st.markdown(f"**Main Writer:** {row.get('main_writer','—')}")
+            sr = row.get('success_rate', 0)
+            if sr:
+                st.markdown(f"**Success Rate:** {float(sr or 0):.2f}%")
 
         # Links
         links_html = ""
