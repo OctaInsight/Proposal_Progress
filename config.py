@@ -8,7 +8,7 @@ PES_FUND_OPTIONS = [
     "", "Un-entitled to PES fund", "Entitled to PES fund",
     "PES fund application submitted", "PES fund granted", "PES fund received",
 ]
-STATUS_OPTIONS   = ["Planned","In preparation","Submitted","Missed","Funded","Rejected"]
+STATUS_OPTIONS   = ["Planned","In preparation","Submitted","Missed","Funded","Rejected","Ended"]
 MANDATE_OPTIONS  = ["Not required","Received","Signed","Submitted"]
 CLOUDEARTI_OPTIONS = ["","CloudEARTHi project","Octa Insight project"]
 PARTNER_TYPES    = ["HEI","Business","NGO","Governmental body",
