@@ -1,0 +1,248 @@
+"""Octa Proposals — Shared UI helpers and dark-mode CSS."""
+import streamlit as st
+from config import DARK, APP_NAME, APP_VERSION
+
+GLOBAL_CSS = f"""
+<style>
+html, body,
+[data-testid="stAppViewContainer"],
+[data-testid="stAppViewContainer"] > section,
+[data-testid="block-container"] {{
+    background-color: {DARK['bg']} !important;
+    color: {DARK['text']} !important;
+}}
+[data-testid="stVerticalBlock"],
+[data-testid="stHorizontalBlock"],
+[data-testid="column"],
+.element-container, .stMarkdown {{
+    background: transparent !important;
+}}
+h1,h2,h3,h4 {{ color: {DARK['text']} !important; }}
+p, li {{ color: {DARK['text']}; }}
+label, .stTextInput label, .stSelectbox label,
+.stMultiselect label, .stTextArea label,
+.stNumberInput label, .stDateInput label {{
+    color: {DARK['muted']} !important;
+    font-size: 0.85rem !important;
+}}
+
+/* Sidebar */
+[data-testid="stSidebar"] {{
+    background: {DARK['sidebar']} !important;
+    border-right: 3px solid {DARK['accent']} !important;
+    box-shadow: 4px 0 20px rgba(0,188,212,0.1) !important;
+}}
+[data-testid="stSidebar"] * {{ color: {DARK['text']} !important; }}
+[data-testid="stSidebar"] .stButton > button {{
+    background: rgba(255,255,255,0.08) !important;
+    border: 1px solid rgba(255,255,255,0.15) !important;
+    border-radius: 8px; width: 100%;
+}}
+[data-testid="stSidebar"] .stButton > button:hover {{
+    background: {DARK['accent']}22 !important;
+    border-color: {DARK['accent']} !important;
+    color: {DARK['accent']} !important;
+}}
+
+/* Inputs */
+input, textarea, input[type="text"],
+input[type="number"], input[type="email"] {{
+    background: {DARK['bg3']} !important;
+    border: 1px solid {DARK['border']} !important;
+    border-radius: 8px !important;
+    color: {DARK['text']} !important;
+}}
+input::placeholder, textarea::placeholder {{
+    color: {DARK['muted']} !important;
+}}
+div[data-baseweb="select"] > div {{
+    background: {DARK['bg3']} !important;
+    border-color: {DARK['border']} !important;
+    color: {DARK['text']} !important;
+}}
+div[data-baseweb="select"] * {{ color: {DARK['text']} !important; }}
+div[data-baseweb="popover"] {{
+    background: {DARK['bg2']} !important;
+    border: 1px solid {DARK['border']} !important;
+}}
+div[data-baseweb="popover"] li:hover {{
+    background: {DARK['bg3']} !important;
+}}
+/* Date picker */
+div[data-baseweb="calendar"],
+div[data-baseweb="datepicker"] > div {{
+    background: {DARK['bg2']} !important;
+    color: {DARK['text']} !important;
+}}
+
+/* Tabs */
+[data-testid="stTabs"] [role="tablist"] {{
+    background: {DARK['bg2']};
+    border-radius: 10px; padding: 4px;
+    border: 1px solid {DARK['border']};
+}}
+[data-testid="stTabs"] [role="tab"] {{
+    color: {DARK['muted']} !important;
+    border-radius: 8px;
+}}
+[data-testid="stTabs"] [role="tab"][aria-selected="true"] {{
+    background: {DARK['accent']} !important;
+    color: white !important;
+}}
+
+/* Buttons */
+[data-testid="stButton"] > button {{
+    background: {DARK['bg3']} !important;
+    border: 1px solid {DARK['border']} !important;
+    color: {DARK['text']} !important;
+    border-radius: 8px !important;
+    transition: all 0.2s !important;
+}}
+[data-testid="stButton"] > button:hover {{
+    border-color: {DARK['accent']} !important;
+    color: {DARK['accent']} !important;
+}}
+[data-testid="stButton"] > button[kind="primary"] {{
+    background: linear-gradient(135deg,{DARK['accent']},#0097A7) !important;
+    border: none !important;
+    color: white !important;
+    font-weight: 600 !important;
+}}
+
+/* Expanders */
+[data-testid="stExpander"] {{
+    background: {DARK['bg2']} !important;
+    border: 1px solid {DARK['border']} !important;
+    border-radius: 10px !important;
+}}
+[data-testid="stExpander"] summary {{ color: {DARK['text']} !important; }}
+
+/* Alerts */
+[data-testid="stAlert"] {{ border-radius: 10px !important; }}
+[data-testid="stAlert"][kind="info"]    {{ background: rgba(0,188,212,0.12) !important; }}
+[data-testid="stAlert"][kind="success"] {{ background: rgba(40,167,69,0.12) !important; }}
+[data-testid="stAlert"][kind="warning"] {{ background: rgba(255,193,7,0.12) !important; }}
+[data-testid="stAlert"][kind="error"]   {{ background: rgba(220,53,69,0.12) !important; }}
+
+/* DataFrames */
+[data-testid="stDataFrame"] {{ background: {DARK['bg2']} !important; }}
+.dvn-scroller {{ background: {DARK['bg2']} !important; }}
+
+hr {{ border-color: {DARK['border']} !important; }}
+::-webkit-scrollbar {{ width: 6px; }}
+::-webkit-scrollbar-track {{ background: {DARK['bg']}; }}
+::-webkit-scrollbar-thumb {{ background: {DARK['bg3']}; border-radius: 3px; }}
+
+/* ── Octa custom components ── */
+.page-header {{
+    background: linear-gradient(135deg,{DARK['sidebar']} 0%,#2d4a7a 100%);
+    padding: 1.4rem 2rem;
+    border-radius: 12px;
+    border-left: 4px solid {DARK['accent']};
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}}
+.page-header h1 {{
+    margin: 0; font-size: 1.7rem; font-weight: 700;
+    color: white !important;
+}}
+.page-header p {{
+    margin: 0.25rem 0 0; color: rgba(255,255,255,0.7) !important;
+    font-size: 0.92rem;
+}}
+.card {{
+    background: {DARK['bg2']};
+    border: 1px solid {DARK['border']};
+    border-radius: 12px;
+    padding: 1.2rem 1.4rem;
+    margin-bottom: 0.8rem;
+    transition: box-shadow 0.2s;
+}}
+.card:hover {{
+    box-shadow: 0 4px 20px rgba(0,188,212,0.1);
+    border-color: rgba(0,188,212,0.25);
+}}
+.card h3 {{
+    margin: 0 0 0.3rem;
+    color: {DARK['text']} !important;
+    font-size: 1rem; font-weight: 600;
+}}
+.section-label {{
+    font-size: 0.72rem; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; color: {DARK['accent']};
+    margin: 1.4rem 0 0.6rem; padding-bottom: 0.3rem;
+    border-bottom: 1px solid {DARK['border']};
+}}
+.stat-box {{
+    background: {DARK['bg2']};
+    border: 1px solid {DARK['border']};
+    border-top: 3px solid {DARK['accent']};
+    border-radius: 12px;
+    padding: 1.2rem;
+    text-align: center;
+}}
+.stat-val  {{ font-size: 2rem; font-weight: 700; color: {DARK['text']}; line-height:1; }}
+.stat-lbl  {{ font-size: 0.8rem; color: {DARK['muted']}; margin-top: 0.3rem; }}
+.badge {{
+    display: inline-block; padding: 2px 10px;
+    border-radius: 20px; font-size: 0.74rem; font-weight: 500;
+    background: rgba(255,255,255,0.08); color: {DARK['text']};
+    border: 1px solid {DARK['border']};
+}}
+.badge-funded   {{ background:rgba(40,167,69,0.2);  color:{DARK['success']}; border-color:rgba(40,167,69,0.35); }}
+.badge-submitted {{ background:rgba(0,188,212,0.15); color:{DARK['accent']};  border-color:rgba(0,188,212,0.3); }}
+.badge-prep     {{ background:rgba(255,193,7,0.15); color:{DARK['warning']}; border-color:rgba(255,193,7,0.3); }}
+.badge-missed   {{ background:rgba(220,53,69,0.15); color:{DARK['danger']};  border-color:rgba(220,53,69,0.3); }}
+.badge-rejected {{ background:rgba(108,117,125,0.2);color:#a0aec0;           border-color:rgba(108,117,125,0.3); }}
+.badge-planned  {{ background:rgba(255,255,255,0.07);color:{DARK['muted']};  border-color:{DARK['border']}; }}
+.divider {{ border:none; border-top:1px solid {DARK['border']}; margin:1.2rem 0; }}
+</style>
+"""
+
+
+def inject_css():
+    st.markdown(GLOBAL_CSS, unsafe_allow_html=True)
+
+
+def page_header(title: str, subtitle: str = "", icon: str = ""):
+    st.markdown(f"""
+    <div class="page-header">
+        <h1>{icon + ' ' if icon else ''}{title}</h1>
+        {'<p>' + subtitle + '</p>' if subtitle else ''}
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def section_label(text: str):
+    st.markdown(f'<div class="section-label">{text}</div>',
+                unsafe_allow_html=True)
+
+
+def status_badge(status: str) -> str:
+    cls = {
+        "Funded":         "badge-funded",
+        "Submitted":      "badge-submitted",
+        "In preparation": "badge-prep",
+        "Missed":         "badge-missed",
+        "Rejected":       "badge-rejected",
+        "Planned":        "badge-planned",
+    }.get(status, "badge-planned")
+    return f'<span class="badge {cls}">{status}</span>'
+
+
+def stat_box(col, label: str, value):
+    with col:
+        st.markdown(f"""
+        <div class="stat-box">
+            <div class="stat-val">{value}</div>
+            <div class="stat-lbl">{label}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+
+def link_html(url: str, label: str = "🔗 Open") -> str:
+    if not url:
+        return ""
+    return (f'<a href="{url}" target="_blank" rel="noopener"'
+            f' style="color:{DARK["accent"]};text-decoration:none;'
+            f'font-size:0.85rem">{label}</a>')
