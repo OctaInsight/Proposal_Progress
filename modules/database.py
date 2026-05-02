@@ -2,7 +2,6 @@
 import streamlit as st
 from supabase import create_client, Client
 from datetime import datetime, date
-from config import MAX_PARTNERS, MAX_ASSOCIATES
 
 
 @st.cache_resource
@@ -81,8 +80,15 @@ def _safe_date(v):
 
 def row_to_db(row: dict) -> dict:
     """Convert flat Google Sheet row → DB-shaped dict."""
-    partners   = [row.get(f"Partner {i}",   "") for i in range(1, MAX_PARTNERS   + 1)]
-    associates = [row.get(f"Associated {i}", "") for i in range(1, MAX_ASSOCIATES + 1)]
+    # Collect all "Partner N" / "Associated N" columns dynamically — no limit
+    partners, associates, i = [], [], 1
+    while f"Partner {i}" in row:
+        partners.append(row.get(f"Partner {i}", ""))
+        i += 1
+    i = 1
+    while f"Associated {i}" in row:
+        associates.append(row.get(f"Associated {i}", ""))
+        i += 1
     return {
         "proposal_id":        str(row.get("Proposal ID", "")).strip(),
         "action_tamer":       row.get("Action: Tamer",          ""),
@@ -156,11 +162,10 @@ def db_to_sheet_row(p: dict, sheet_columns: list) -> list:
         "Announcement Date":    str(p.get("announcement_date") or ""),
         "Coordinator":          p.get("coordinator",         ""),
     }
-    from config import MAX_PARTNERS, MAX_ASSOCIATES
-    for i in range(1, MAX_PARTNERS + 1):
-        flat[f"Partner {i}"] = partners_list[i-1] if i-1 < len(partners_list) else ""
-    for i in range(1, MAX_ASSOCIATES + 1):
-        flat[f"Associated {i}"] = associates_list[i-1] if i-1 < len(associates_list) else ""
+    for i, v in enumerate(partners_list, 1):
+        flat[f"Partner {i}"] = v
+    for i, v in enumerate(associates_list, 1):
+        flat[f"Associated {i}"] = v
 
     return [str(flat.get(col, "")) for col in sheet_columns]
 
