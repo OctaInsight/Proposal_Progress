@@ -9,7 +9,7 @@ import requests
 import pandas as pd
 import json
 import io
-from config import SHEET_COLUMNS, MAX_PARTNERS, MAX_ASSOCIATES
+from config import SHEET_COLUMNS_BASE
 
 
 def _csv_url() -> str:
@@ -91,12 +91,14 @@ def write_proposal_to_sheet(proposal_db_row: dict) -> tuple:
     """
     Write (or overwrite) one proposal to the Sheet.
     Matches by Proposal ID in column A.
+    Headers are built dynamically to match the actual partner count.
     """
     row_values = _db_to_sheet_row(proposal_db_row)
+    headers    = _build_header_for_row(proposal_db_row)
     return _post({
         "action":      "write_row",
         "proposal_id": proposal_db_row.get("proposal_id",""),
-        "headers":     SHEET_COLUMNS,
+        "headers":     headers,
         "row":         row_values,
     })
 
@@ -144,48 +146,65 @@ def sync_sheet_to_db() -> tuple:
 # ── Internal helper ───────────────────────────────────────────────────────────
 
 def _db_to_sheet_row(p: dict) -> list:
-    """Flatten DB dict → ordered list matching SHEET_COLUMNS."""
+    """
+    Flatten DB dict → ordered list for Google Sheets.
+    Partner and associate columns are fully dynamic — no upper limit.
+    Column order: base fields | Partner 1..N | Associated 1..M
+    """
     partners_list   = p.get("partners_list")   or []
     associates_list = p.get("associates_list") or []
     if isinstance(partners_list,   str): partners_list   = []
     if isinstance(associates_list, str): associates_list = []
 
-    flat = {
-        "Proposal ID":            p.get("proposal_id",         ""),
-        "Action: Tamer":          p.get("action_tamer",         ""),
-        "Action: Yasin":          p.get("action_yasin",         ""),
-        "Action: Haseeb":         p.get("action_haseeb",        ""),
-        "Action: Other":          p.get("action_other",         ""),
-        "Comment":                p.get("comment",              ""),
-        "PES Fund Request":       p.get("pes_fund_request",     ""),
-        "Status":                 p.get("status",               ""),
-        "Octa Budget (EUR)":      str(p.get("octa_budget",       0)),
-        "Total Budget (EUR)":     str(p.get("total_budget",      0)),
-        "Link to CloudEARTHi":    p.get("link_cloudearti",      ""),
-        "Success Rate (%)":       str(p.get("success_rate",      0)),
-        "Duration (months)":      str(p.get("duration_months",   0)),
-        "Mandate/Support Letter": p.get("mandate_letter",       ""),
-        "Responsible Person":     p.get("responsible_person",   ""),
-        "Main Writer":            p.get("main_writer",          ""),
-        "Form ID":                p.get("form_id",              ""),
-        "Submission ID":          p.get("submission_id",        ""),
-        "Acronym":                p.get("acronym",              ""),
-        "Proposal Title":         p.get("proposal_title",       ""),
-        "Call":                   p.get("call",                 ""),
-        "Topic":                  p.get("topic",                ""),
-        "Type of Action":         p.get("type_of_action",       ""),
-        "Link to Call":           p.get("link_to_call",         ""),
-        "Google Drive Link":      p.get("google_drive_link",    ""),
-        "Deadline":               str(p.get("deadline")         or ""),
-        "Submission Date":        str(p.get("submission_date")  or ""),
-        "Announcement Date":      str(p.get("announcement_date") or ""),
-        "Coordinator":            p.get("coordinator",          ""),
-    }
-    for i in range(1, MAX_PARTNERS + 1):
-        flat[f"Partner {i}"] = (
-            partners_list[i-1] if i-1 < len(partners_list) else "")
-    for i in range(1, MAX_ASSOCIATES + 1):
-        flat[f"Associated {i}"] = (
-            associates_list[i-1] if i-1 < len(associates_list) else "")
+    base_values = [
+        str(p.get("proposal_id",         "")),
+        str(p.get("action_tamer",         "")),
+        str(p.get("action_yasin",         "")),
+        str(p.get("action_haseeb",        "")),
+        str(p.get("action_other",         "")),
+        str(p.get("comment",              "")),
+        str(p.get("pes_fund_request",     "")),
+        str(p.get("status",               "")),
+        str(p.get("octa_budget",           0)),
+        str(p.get("total_budget",          0)),
+        str(p.get("link_cloudearti",      "")),
+        str(p.get("success_rate",          0)),
+        str(p.get("duration_months",       0)),
+        str(p.get("mandate_letter",       "")),
+        str(p.get("responsible_person",   "")),
+        str(p.get("main_writer",          "")),
+        str(p.get("form_id",              "")),
+        str(p.get("submission_id",        "")),
+        str(p.get("acronym",              "")),
+        str(p.get("proposal_title",       "")),
+        str(p.get("call",                 "")),
+        str(p.get("topic",                "")),
+        str(p.get("type_of_action",       "")),
+        str(p.get("link_to_call",         "")),
+        str(p.get("google_drive_link",    "")),
+        str(p.get("deadline")             or ""),
+        str(p.get("submission_date")      or ""),
+        str(p.get("announcement_date")    or ""),
+        str(p.get("coordinator",          "")),
+    ]
 
-    return [str(flat.get(col, "")) for col in SHEET_COLUMNS]
+    # Append as many partner/associate columns as actually exist
+    partner_values   = [str(v) for v in partners_list   if v is not None]
+    associate_values = [str(v) for v in associates_list if v is not None]
+
+    return base_values + partner_values + associate_values
+
+
+def _build_header_for_row(p: dict) -> list:
+    """Build matching header list for a given proposal row."""
+    from config import SHEET_COLUMNS_BASE
+    partners_list   = p.get("partners_list")   or []
+    associates_list = p.get("associates_list") or []
+    if isinstance(partners_list,   str): partners_list   = []
+    if isinstance(associates_list, str): associates_list = []
+    headers = list(SHEET_COLUMNS_BASE)
+    for i in range(1, len(partners_list) + 1):
+        headers.append(f"Partner {i}")
+    for i in range(1, len(associates_list) + 1):
+        headers.append(f"Associated {i}")
+    return headers
