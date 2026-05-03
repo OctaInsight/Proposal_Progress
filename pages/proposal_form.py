@@ -21,6 +21,7 @@ st.set_page_config(page_title="Proposal Form — Octa Proposals",
                    page_icon="📝", layout="wide")
 inject_css()
 sidebar_nav()
+require_auth()
 
 # ── Mode: new vs edit ─────────────────────────────────────────────────────────
 edit_pid = st.session_state.get("edit_proposal_id")
