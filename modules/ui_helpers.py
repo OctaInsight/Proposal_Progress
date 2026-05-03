@@ -246,3 +246,84 @@ def link_html(url: str, label: str = "🔗 Open") -> str:
     return (f'<a href="{url}" target="_blank" rel="noopener"'
             f' style="color:{DARK["accent"]};text-decoration:none;'
             f'font-size:0.85rem">{label}</a>')
+
+
+def sidebar_nav():
+    """
+    Render the standard sidebar navigation for all pages.
+    Shows login/logout depending on auth state.
+    Admin link shown only to admins.
+    """
+    is_auth  = st.session_state.get("authenticated", False)
+    is_admin = st.session_state.get("role") == "admin"
+    uname    = st.session_state.get("first_name") or \
+               st.session_state.get("username", "")
+
+    with st.sidebar:
+        # ── Logo & app name ───────────────────────────────────────────────────
+        st.markdown(f"""
+<div style="text-align:center;padding:1.2rem 0 1rem">
+    <div style="font-size:2.4rem">📋</div>
+    <div style="font-weight:700;font-size:1.1rem;
+                color:{DARK['text']};letter-spacing:-0.3px">
+        {APP_NAME}
+    </div>
+    <div style="color:{DARK['muted']};font-size:0.7rem">v{APP_VERSION}</div>
+</div>
+""", unsafe_allow_html=True)
+
+        # ── User info (if logged in) ──────────────────────────────────────────
+        if is_auth:
+            st.markdown(f"""
+<div style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);
+            border-radius:8px;padding:0.5rem 0.8rem;margin-bottom:0.8rem;
+            font-size:0.83rem">
+    👤 <strong style="color:{DARK['text']}">{uname}</strong>
+</div>
+""", unsafe_allow_html=True)
+
+        st.markdown("<hr style='border-color:rgba(255,255,255,0.12);margin:0 0 0.6rem'>",
+                    unsafe_allow_html=True)
+
+        # ── Navigation items ──────────────────────────────────────────────────
+        nav_items = [
+            ("🏠  Home",            "app.py"),
+            ("📊  Dashboard",       "pages/dashboard.py"),
+            ("🤝  Partners",        "pages/partners.py"),
+            ("📝  Proposal Form",   "pages/proposal_form.py"),
+        ]
+
+        for label, page in nav_items:
+            if st.button(label, key=f"nav_{label}",
+                         use_container_width=True):
+                st.switch_page(page)
+
+        # Admin link — only for admins
+        if is_admin:
+            st.markdown("<hr style='border-color:rgba(255,255,255,0.12);"
+                        "margin:0.6rem 0'>", unsafe_allow_html=True)
+            if st.button("🛡️  Admin Panel", key="nav_admin",
+                         use_container_width=True):
+                st.switch_page("pages/admin.py")
+
+        st.markdown("<hr style='border-color:rgba(255,255,255,0.12);"
+                    "margin:0.6rem 0'>", unsafe_allow_html=True)
+
+        # ── Login / Logout ────────────────────────────────────────────────────
+        if is_auth:
+            if st.button("🚪  Logout", key="nav_logout",
+                         use_container_width=True):
+                from modules.auth import clear_session
+                clear_session()
+                st.switch_page("pages/login.py")
+        else:
+            if st.button("🔑  Login", key="nav_login",
+                         use_container_width=True):
+                st.switch_page("pages/login.py")
+
+        st.markdown(f"""
+<div style="color:{DARK['muted']};font-size:0.68rem;
+            text-align:center;margin-top:1rem">
+    Octa Platform
+</div>
+""", unsafe_allow_html=True)
