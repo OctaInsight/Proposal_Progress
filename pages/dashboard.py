@@ -323,166 +323,116 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# ── Proposal cards — full HTML, guaranteed colours ────────────────────────────
+# ── Proposal cards — pure Streamlit, colored stripe + native expander ─────────
 for _, row in filtered.iterrows():
-    pid    = row.get("proposal_id", "")
-    title  = row.get("proposal_title", "") or row.get("acronym", "") or pid
-    acronym = row.get("acronym", "") or "—"
-    status  = row.get("status", "")
-    ddl     = str(row.get("deadline") or "—")
-    sub_dt  = str(row.get("submission_date") or "—")
-    octa_b  = float(row.get("octa_budget")  or 0)
-    tot_b   = float(row.get("total_budget") or 0)
-    octa_pct = (octa_b / tot_b * 100) if tot_b > 0 else 0
-    responsible = row.get("responsible_person", "—") or "—"
-    writer      = row.get("main_writer", "—") or "—"
-    sr          = row.get("success_rate", 0) or 0
-    duration    = int(row.get("duration_months", 0) or 0)
-    coordinator = row.get("coordinator", "") or ""
-    call_link   = row.get("link_to_call", "") or ""
-    drive_link  = row.get("google_drive_link", "") or ""
-    comment     = row.get("comment", "") or ""
-
+    pid         = row.get("proposal_id", "")
+    title       = row.get("proposal_title", "") or row.get("acronym", "") or pid
+    acronym     = row.get("acronym", "")      or "—"
+    status      = row.get("status", "")
+    ddl         = str(row.get("deadline")         or "—")
+    octa_b      = float(row.get("octa_budget")    or 0)
+    tot_b       = float(row.get("total_budget")   or 0)
+    octa_pct    = (octa_b / tot_b * 100) if tot_b > 0 else 0
+    responsible = row.get("responsible_person",   "") or "—"
+    writer      = row.get("main_writer",          "") or "—"
+    sr          = float(row.get("success_rate",    0) or 0)
+    duration    = int(row.get("duration_months",   0) or 0)
+    coordinator = row.get("coordinator",          "") or ""
+    call_link   = row.get("link_to_call",         "") or ""
+    drive_link  = row.get("google_drive_link",    "") or ""
+    comment     = row.get("comment",              "") or ""
     partners_list   = row.get("partners_list")   or []
     associates_list = row.get("associates_list") or []
     if isinstance(partners_list,   str): partners_list   = []
     if isinstance(associates_list, str): associates_list = []
-
-    # Resolve status colours first — needed by actions_html below
-    s_border, s_bg, s_dark, s_icon = STATUS_CARD.get(status, DEFAULT_CARD)
-
-    # Actions
     actions = {p: row.get(f"action_{p.lower()}", "") or ""
-               for p in ["Tamer","Yasin","Haseeb","Other"]}
-    actions_html = ""
-    text_col = D["text"]
-    for person, val in actions.items():
-        if val:
-            actions_html += (
-                f"<div style='margin-bottom:3px'>"
-                f"<span style='color:{s_border};font-weight:600'>{person}:</span> "
-                f"<span style='color:{text_col}'>{val}</span></div>"
-            )
+               for p in ["Tamer", "Yasin", "Haseeb", "Other"]}
 
-    # Pre-compute HTML fragments that would cause quote conflicts inside f-strings
-    comment_html = (
-        f"<div style='margin-top:0.6rem;font-size:0.84rem;color:{D['muted']}'>"
-        f"<b style='color:{D['text']}'>💬 Comment:</b> {comment}</div>"
-        if comment else ""
-    )
-    actions_div = (
-        f"<div style='border-top:1px solid {s_border}33;margin-top:0.8rem;"
-        f"padding-top:0.7rem;font-size:0.84rem'>{actions_html}</div>"
-        if actions_html else ""
+    s_border, s_bg, s_dark, s_icon = STATUS_CARD.get(status, DEFAULT_CARD)
+    sr_str  = f"{sr:.1f}%" if sr else "—"
+    share_w = f"{min(octa_pct, 100):.0f}"
+
+    # ── Colored stripe (one tiny HTML line — no indentation, no comments) ───
+    st.markdown(
+        f"<div style='height:5px;background:{s_border};"
+        f"border-radius:4px 4px 0 0;margin-bottom:2px'></div>",
+        unsafe_allow_html=True,
     )
 
-    # Links HTML
-    link_parts = []
-    if call_link:
-        link_parts.append(
-            f"<a href='{call_link}' target='_blank' style='color:{D['accent']};"
-            f"text-decoration:none;font-size:0.82rem;margin-right:1rem'>"
-            f"🔗 Call Page</a>")
-    if drive_link:
-        link_parts.append(
-            f"<a href='{drive_link}' target='_blank' style='color:{D['accent']};"
-            f"text-decoration:none;font-size:0.82rem'>"
-            f"📁 Google Drive</a>")
+    # ── Native expander — collapsed by default ───────────────────────────────
+    label = f"{s_icon}  {pid}  ·  {acronym}  |  {status}  |  ⏰ {ddl}  |  Octa: {fmt_eur(octa_b)}"
+    with st.expander(label, expanded=False):
 
-    # Consortium
-    cons_parts = []
-    if coordinator:
-        cons_parts.append(f"<b>🏛 Coord:</b> {coordinator}")
-    if partners_list:
-        cons_parts.append("<b>Partners:</b> " + " · ".join(partners_list))
-    if associates_list:
-        cons_parts.append("<b>Associates:</b> " + " · ".join(associates_list))
+        # Data grid
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            st.markdown(f"**Acronym:** {acronym}")
+            st.markdown(f"**Status:** {status}")
+            st.markdown(f"**Duration:** {duration} months")
+        with c2:
+            st.markdown(f"**Deadline:** {ddl}")
+            st.markdown(f"**Submission Date:** {str(row.get('submission_date') or '—')}")
+            st.markdown(f"**Announcement:** {str(row.get('announcement_date') or '—')}")
+        with c3:
+            st.markdown(f"**Octa Budget:** {fmt_eur(octa_b)}")
+            st.markdown(f"**Total Budget:** {fmt_eur(tot_b)}")
+            st.markdown(f"**Octa Share:** {octa_pct:.1f}%")
+            st.markdown(f"**Success Rate:** {sr_str}")
+        with c4:
+            st.markdown(f"**Responsible:** {responsible}")
+            st.markdown(f"**Main Writer:** {writer}")
+            st.markdown(f"**Form ID:** {row.get('form_id','—') or '—'}")
+            st.markdown(f"**Submission ID:** {row.get('submission_id','—') or '—'}")
 
-    consortium_html = ""
-    if cons_parts:
-        consortium_html = (
-            f"<div style='border-top:1px solid {s_border}33;margin-top:0.8rem;"
-            f"padding-top:0.7rem;font-size:0.84rem;color:{D['text']};line-height:1.7'>"
-            + "<br>".join(cons_parts)
-            + "</div>"
+        # Octa share bar (single short HTML line)
+        st.markdown(
+            f"<div style='background:rgba(255,255,255,0.1);border-radius:3px;"
+            f"height:6px;margin:0.5rem 0'><div style='background:{s_border};"
+            f"border-radius:3px;height:6px;width:{share_w}%'></div></div>",
+            unsafe_allow_html=True,
         )
 
-    # ── Render card — no HTML comments, no 4-space indentation (breaks markdown) ──
-    import html as _html
-    def esc(v): return _html.escape(str(v or ""))
-
-    # Safe user values
-    e_status = esc(status);  e_pid   = esc(pid)
-    e_title  = esc(title[:70]) + ("…" if len(title) > 70 else "")
-    e_acr    = esc(acronym);  e_ddl   = esc(ddl)
-    e_resp   = esc(responsible); e_wri = esc(writer)
-    e_dur    = esc(str(duration))
-    sr_str   = f"{float(sr):.1f}%" if sr else "—"
-    share_pct = f"{min(octa_pct,100):.1f}"
-
-    card_html = (
-        f"<div style='background:{s_bg};border:1px solid {s_border}66;"
-        f"border-left:6px solid {s_border};border-radius:12px;"
-        f"padding:1rem 1.3rem 1.1rem;margin:0.45rem 0 0.1rem'>"
-        # Header
-        f"<div style='display:flex;align-items:center;gap:0.6rem;"
-        f"flex-wrap:wrap;margin-bottom:0.75rem'>"
-        f"<span style='font-size:1.2rem'>{s_icon}</span>"
-        f"<span style='background:{s_border}30;color:{s_border};"
-        f"font-weight:700;font-size:0.7rem;text-transform:uppercase;"
-        f"letter-spacing:0.08em;padding:2px 9px;border-radius:20px;"
-        f"border:1px solid {s_border}66'>{e_status}</span>"
-        f"<span style='color:{s_border};font-weight:700;font-size:0.95rem;"
-        f"font-family:monospace'>{e_pid}</span>"
-        f"<span style='color:{D['muted']}'>·</span>"
-        f"<span style='color:{D['text']};font-size:0.9rem;font-weight:600;"
-        f"flex:1;min-width:0'>{e_title}</span>"
-        f"</div>"
-        # Data grid
-        f"<div style='display:grid;grid-template-columns:repeat(4,1fr);"
-        f"gap:0.6rem 1.2rem;font-size:0.84rem'>"
-        f"<div><div style='color:{D['muted']};font-size:0.72rem;margin-bottom:2px'>ACRONYM</div>"
-        f"<div style='color:{D['text']};font-weight:600'>{e_acr}</div></div>"
-        f"<div><div style='color:{D['muted']};font-size:0.72rem;margin-bottom:2px'>DEADLINE</div>"
-        f"<div style='color:{D['text']}'>{e_ddl}</div></div>"
-        f"<div><div style='color:{D['muted']};font-size:0.72rem;margin-bottom:2px'>RESPONSIBLE</div>"
-        f"<div style='color:{D['text']}'>{e_resp}</div></div>"
-        f"<div><div style='color:{D['muted']};font-size:0.72rem;margin-bottom:2px'>MAIN WRITER</div>"
-        f"<div style='color:{D['text']}'>{e_wri}</div></div>"
-        f"<div><div style='color:{D['muted']};font-size:0.72rem;margin-bottom:2px'>OCTA BUDGET</div>"
-        f"<div style='color:{D['accent2']};font-weight:700'>{fmt_eur(octa_b)}</div></div>"
-        f"<div><div style='color:{D['muted']};font-size:0.72rem;margin-bottom:2px'>TOTAL BUDGET</div>"
-        f"<div style='color:{D['accent']};font-weight:700'>{fmt_eur(tot_b)}</div></div>"
-        f"<div><div style='color:{D['muted']};font-size:0.72rem;margin-bottom:2px'>DURATION</div>"
-        f"<div style='color:{D['text']}'>{e_dur} months</div></div>"
-        f"<div><div style='color:{D['muted']};font-size:0.72rem;margin-bottom:2px'>SUCCESS RATE</div>"
-        f"<div style='color:{D['text']}'>{esc(sr_str)}</div></div>"
-        f"</div>"
-        # Share bar
-        f"<div style='margin:0.8rem 0 0.5rem'>"
-        f"<div style='display:flex;justify-content:space-between;"
-        f"font-size:0.72rem;color:{D['muted']};margin-bottom:4px'>"
-        f"<span>Octa share of total budget</span>"
-        f"<span style='color:{s_border}'>{share_pct}%</span></div>"
-        f"<div style='background:rgba(255,255,255,0.1);border-radius:4px;height:6px'>"
-        f"<div style='background:{s_border};border-radius:4px;height:6px;"
-        f"width:{share_pct}%'></div></div></div>"
         # Links
-        + (f"<div style='margin-bottom:0.6rem'>" + " ".join(link_parts) + "</div>"
-           if link_parts else "")
-        # Consortium
-        + consortium_html
-        # Actions
-        + actions_div
-        # Comment
-        + comment_html
-        + "</div>"
-    )
-    st.markdown(card_html, unsafe_allow_html=True)
+        if call_link or drive_link:
+            lc1, lc2, lc3 = st.columns([1, 1, 4])
+            if call_link:
+                lc1.link_button("🔗 Call Page", call_link)
+            if drive_link:
+                lc2.link_button("📁 Drive", drive_link)
 
-    # Edit button sits flush below each card
-    if st.button(f"✏️ Edit {pid}", key=f"edit_{pid}"):
-        st.session_state["edit_proposal_id"] = pid
-        st.switch_page("pages/proposal_form.py")
+        # Consortium
+        if coordinator or partners_list or associates_list:
+            st.markdown("---")
+            if coordinator:
+                st.markdown(f"**🏛 Coordinator:** {coordinator}")
+            if partners_list:
+                st.markdown("**Partners:** " + "  ·  ".join(partners_list))
+            if associates_list:
+                st.markdown("**Associates:** " + "  ·  ".join(associates_list))
+
+        # Actions
+        any_action = any(v for v in actions.values())
+        if any_action:
+            st.markdown("---")
+            ac1, ac2 = st.columns(2)
+            for i, (person, val) in enumerate(actions.items()):
+                if val:
+                    (ac1 if i % 2 == 0 else ac2).markdown(
+                        f"**⚡ {person}:** {val}"
+                    )
+
+        # Comment
+        if comment:
+            st.markdown("---")
+            st.markdown(f"**💬 Comment:** {comment}")
+
+        # Edit button
+        st.markdown("---")
+        if st.button(f"✏️ Edit {pid}", key=f"edit_{pid}", type="primary"):
+            st.session_state["edit_proposal_id"] = pid
+            st.switch_page("pages/proposal_form.py")
+
+    st.markdown("<div style='margin-bottom:4px'></div>", unsafe_allow_html=True)
+
 
 
