@@ -250,80 +250,98 @@ def link_html(url: str, label: str = "🔗 Open") -> str:
 
 def sidebar_nav():
     """
-    Render the standard sidebar navigation for all pages.
-    Shows login/logout depending on auth state.
-    Admin link shown only to admins.
+    Sidebar navigation using st.page_link() — the correct Streamlit API.
+    Groups items with dividers and boxes.
     """
     is_auth  = st.session_state.get("authenticated", False)
-    is_admin = st.session_state.get("role") == "admin"
-    uname    = st.session_state.get("first_name") or \
-               st.session_state.get("username", "")
+    is_admin_user = st.session_state.get("role") == "admin"
+    uname    = (st.session_state.get("first_name") or
+                st.session_state.get("username", ""))
 
     with st.sidebar:
-        # ── Logo & app name ───────────────────────────────────────────────────
-        st.markdown(f"""
-<div style="text-align:center;padding:1.2rem 0 1rem">
-    <div style="font-size:2.4rem">📋</div>
-    <div style="font-weight:700;font-size:1.1rem;
-                color:{DARK['text']};letter-spacing:-0.3px">
-        {APP_NAME}
-    </div>
-    <div style="color:{DARK['muted']};font-size:0.7rem">v{APP_VERSION}</div>
-</div>
-""", unsafe_allow_html=True)
 
-        # ── User info (if logged in) ──────────────────────────────────────────
+        # ── Logo ──────────────────────────────────────────────────────────────
+        st.markdown(f"""<div style="text-align:center;padding:1rem 0 0.8rem">
+<div style="font-size:2.2rem">📋</div>
+<div style="font-weight:700;font-size:1.05rem;color:{DARK['text']}">
+{APP_NAME}</div>
+<div style="color:{DARK['muted']};font-size:0.68rem">v{APP_VERSION}</div>
+</div>""", unsafe_allow_html=True)
+
+        # ── User badge ────────────────────────────────────────────────────────
+        if is_auth and uname:
+            st.markdown(
+                f"<div style='background:rgba(255,255,255,0.07);"
+                f"border:1px solid rgba(255,255,255,0.12);border-radius:8px;"
+                f"padding:0.4rem 0.8rem;font-size:0.82rem;margin-bottom:0.4rem'>"
+                f"👤 <strong style='color:{DARK["text"]}'>{uname}</strong>"
+                f"</div>",
+                unsafe_allow_html=True
+            )
+
+        # ── Divider ───────────────────────────────────────────────────────────
+        st.markdown(
+            "<hr style='border:none;border-top:1px solid rgba(255,255,255,0.12);"
+            "margin:0.3rem 0 0.5rem'>",
+            unsafe_allow_html=True
+        )
+
+        # ── Main navigation ───────────────────────────────────────────────────
+        st.markdown(
+            f"<div style='font-size:0.68rem;font-weight:600;letter-spacing:0.1em;"
+            f"text-transform:uppercase;color:{DARK['muted']};margin-bottom:0.3rem'>"
+            f"Navigation</div>",
+            unsafe_allow_html=True
+        )
+
+        st.page_link("app.py",                    label="🏠  Home")
+        st.page_link("pages/dashboard.py",         label="📊  Dashboard")
+        st.page_link("pages/partners.py",          label="🤝  Partners")
+        st.page_link("pages/proposal_form.py",     label="📝  New Proposal")
+
+        # ── Admin section (admin only) ────────────────────────────────────────
+        if is_admin_user:
+            st.markdown(
+                "<hr style='border:none;border-top:1px solid rgba(255,255,255,0.12);"
+                "margin:0.5rem 0'>",
+                unsafe_allow_html=True
+            )
+            st.markdown(
+                f"<div style='font-size:0.68rem;font-weight:600;letter-spacing:0.1em;"
+                f"text-transform:uppercase;color:{DARK['muted']};margin-bottom:0.3rem'>"
+                f"Administration</div>",
+                unsafe_allow_html=True
+            )
+            st.page_link("pages/admin.py", label="🛡️  Admin Panel")
+
+        # ── Account section ───────────────────────────────────────────────────
+        st.markdown(
+            "<hr style='border:none;border-top:1px solid rgba(255,255,255,0.12);"
+            "margin:0.5rem 0'>",
+            unsafe_allow_html=True
+        )
+        st.markdown(
+            f"<div style='font-size:0.68rem;font-weight:600;letter-spacing:0.1em;"
+            f"text-transform:uppercase;color:{DARK['muted']};margin-bottom:0.3rem'>"
+            f"Account</div>",
+            unsafe_allow_html=True
+        )
+
         if is_auth:
-            st.markdown(f"""
-<div style="background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);
-            border-radius:8px;padding:0.5rem 0.8rem;margin-bottom:0.8rem;
-            font-size:0.83rem">
-    👤 <strong style="color:{DARK['text']}">{uname}</strong>
-</div>
-""", unsafe_allow_html=True)
-
-        st.markdown("<hr style='border-color:rgba(255,255,255,0.12);margin:0 0 0.6rem'>",
-                    unsafe_allow_html=True)
-
-        # ── Navigation items ──────────────────────────────────────────────────
-        nav_items = [
-            ("🏠  Home",            "app.py"),
-            ("📊  Dashboard",       "pages/dashboard.py"),
-            ("🤝  Partners",        "pages/partners.py"),
-            ("📝  Proposal Form",   "pages/proposal_form.py"),
-        ]
-
-        for label, page in nav_items:
-            if st.button(label, key=f"nav_{label}",
-                         use_container_width=True):
-                st.switch_page(page)
-
-        # Admin link — only for admins
-        if is_admin:
-            st.markdown("<hr style='border-color:rgba(255,255,255,0.12);"
-                        "margin:0.6rem 0'>", unsafe_allow_html=True)
-            if st.button("🛡️  Admin Panel", key="nav_admin",
-                         use_container_width=True):
-                st.switch_page("pages/admin.py")
-
-        st.markdown("<hr style='border-color:rgba(255,255,255,0.12);"
-                    "margin:0.6rem 0'>", unsafe_allow_html=True)
-
-        # ── Login / Logout ────────────────────────────────────────────────────
-        if is_auth:
-            if st.button("🚪  Logout", key="nav_logout",
-                         use_container_width=True):
+            st.page_link("pages/login.py", label="🚪  Logout")
+            # The logout actually needs a button since it clears session
+            # page_link just navigates; use a small button for real logout
+            if st.button("Sign out", use_container_width=True,
+                         key="sidebar_signout"):
                 from modules.auth import clear_session
                 clear_session()
                 st.switch_page("pages/login.py")
         else:
-            if st.button("🔑  Login", key="nav_login",
-                         use_container_width=True):
-                st.switch_page("pages/login.py")
+            st.page_link("pages/login.py", label="🔑  Login / Register")
 
-        st.markdown(f"""
-<div style="color:{DARK['muted']};font-size:0.68rem;
-            text-align:center;margin-top:1rem">
-    Octa Platform
-</div>
-""", unsafe_allow_html=True)
+        # ── Footer ────────────────────────────────────────────────────────────
+        st.markdown(
+            f"<div style='color:{DARK['muted']};font-size:0.65rem;"
+            f"text-align:center;margin-top:1.5rem'>Octa Platform</div>",
+            unsafe_allow_html=True
+        )
