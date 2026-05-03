@@ -10,6 +10,7 @@ from modules.database import (
     next_proposal_id, get_proposal_by_pid,
     upsert_proposal, get_all_partners, _safe_date
 )
+from modules.auth import require_auth
 from modules.sheets import write_proposal_to_sheet
 from modules.ui_helpers import sidebar_nav, inject_css, page_header, section_label, DARK
 from config import (
