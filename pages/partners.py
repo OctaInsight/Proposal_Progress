@@ -14,6 +14,7 @@ st.set_page_config(page_title="Partners — Octa Proposals",
                    page_icon="🤝", layout="wide")
 inject_css()
 sidebar_nav()
+require_auth()
 
 if st.button("← Back to Home", key="back"):
     st.switch_page("app.py")
