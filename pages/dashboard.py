@@ -348,19 +348,22 @@ for _, row in filtered.iterrows():
     if isinstance(partners_list,   str): partners_list   = []
     if isinstance(associates_list, str): associates_list = []
 
+    # Resolve status colours first — needed by actions_html below
+    s_border, s_bg, s_dark, s_icon = STATUS_CARD.get(status, DEFAULT_CARD)
+
     # Actions
     actions = {p: row.get(f"action_{p.lower()}", "") or ""
                for p in ["Tamer","Yasin","Haseeb","Other"]}
     actions_html = ""
+    text_col = D["text"]
     for person, val in actions.items():
         if val:
             actions_html += (
                 f"<div style='margin-bottom:3px'>"
                 f"<span style='color:{s_border};font-weight:600'>{person}:</span> "
-                f"<span style='color:{D['text']}'>{val}</span></div>"
+                f"<span style='color:{text_col}'>{val}</span></div>"
             )
 
-    s_border, s_bg, s_dark, s_icon = STATUS_CARD.get(status, DEFAULT_CARD)
     # Pre-compute HTML fragments that would cause quote conflicts inside f-strings
     comment_html = (
         f"<div style='margin-top:0.6rem;font-size:0.84rem;color:{D['muted']}'>"
