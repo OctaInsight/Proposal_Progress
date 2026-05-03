@@ -1,37 +1,32 @@
 """
 Octa Platform — Login Page
-Sign In · Register · Forgot Password
+Sign In · Register · Reset Password
+No email required — all flows work on-screen.
 """
 import streamlit as st
 from modules.ui_helpers import inject_css, DARK
 from modules.auth import (
-    login_user, register_user, set_session,
-    request_password_reset, reset_password_with_token, is_authenticated
+    login_user, register_user, set_session, is_authenticated,
+    generate_reset_token, reset_password_with_token,
 )
-from modules.email_utils import send_registration_emails
 
 st.set_page_config(
     page_title="Login — Octa Platform",
-    page_icon="🔬",
+    page_icon="📋",
     layout="centered",
     initial_sidebar_state="collapsed",
 )
 inject_css()
 
-# Redirect if already logged in
 if is_authenticated():
     st.switch_page("app.py")
 
-# Check for password reset token in URL
-params = st.query_params
-reset_token = params.get("reset_token", "")
-
-# ── Page header ───────────────────────────────────────────────────────────────
+# ── Hero ──────────────────────────────────────────────────────────────────────
 st.markdown(f"""
 <div style="text-align:center;padding:2rem 0 1.5rem">
-    <div style="font-size:3rem">📋</div>
+    <div style="font-size:3.2rem">📋</div>
     <h1 style="color:white;font-size:2rem;font-weight:800;
-               margin:0.4rem 0 0.2rem;letter-spacing:-1px">
+               margin:0.5rem 0 0.2rem;letter-spacing:-1px">
         Octa Platform
     </h1>
     <p style="color:{DARK['muted']};font-size:0.95rem;margin:0">
@@ -40,89 +35,71 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ── Password reset flow (token in URL) ───────────────────────────────────────
-if reset_token:
-    st.markdown(f"""
-    <div style="background:{DARK['bg2']};border:1px solid {DARK['border']};
-                border-left:4px solid {DARK['accent']};border-radius:12px;
-                padding:1.5rem;margin-bottom:1rem">
-        <h3 style="color:white;margin:0 0 1rem">🔑 Reset Your Password</h3>
-    </div>
-    """, unsafe_allow_html=True)
-    new_pw  = st.text_input("New password",     type="password",
-                             placeholder="At least 8 characters")
-    new_pw2 = st.text_input("Confirm password", type="password",
-                             placeholder="Repeat new password")
-    if st.button("✅ Set New Password", type="primary", use_container_width=True):
-        if new_pw != new_pw2:
-            st.error("Passwords do not match.")
-        else:
-            ok, msg = reset_password_with_token(reset_token, new_pw)
-            if ok:
-                st.success(msg)
-                st.query_params.clear()
-                st.info("You can now sign in with your new password.")
-            else:
-                st.error(msg)
-    st.stop()
-
-# ── Auth tabs ─────────────────────────────────────────────────────────────────
-tab_login, tab_register, tab_forgot = st.tabs(
-    ["🔑  Sign In", "✨  Register", "🔓  Forgot Password"]
+tab_login, tab_register, tab_reset = st.tabs(
+    ["🔑  Sign In", "✨  Register", "🔓  Reset Password"]
 )
 
-# ────────────────────────────────────────────────────────────────────────────
-# SIGN IN
-# ────────────────────────────────────────────────────────────────────────────
+# ─── SIGN IN ──────────────────────────────────────────────────────────────────
 with tab_login:
     st.markdown("<br>", unsafe_allow_html=True)
-    login_email = st.text_input("Email address", key="li_email",
-                                placeholder="you@example.com")
-    login_pass  = st.text_input("Password", type="password", key="li_pass",
-                                placeholder="Your password")
+    li_email = st.text_input("Email address", key="li_email",
+                              placeholder="you@example.com")
+    li_pass  = st.text_input("Password", type="password", key="li_pass",
+                              placeholder="Your password")
     st.markdown("<br>", unsafe_allow_html=True)
 
-    if st.button("Sign In →", type="primary", use_container_width=True,
-                 key="btn_login"):
-        if not login_email or not login_pass:
+    if st.button("Sign In →", type="primary",
+                 use_container_width=True, key="btn_login"):
+        if not li_email or not li_pass:
             st.warning("Please fill in both fields.")
         else:
-            ok, msg, user = login_user(login_email, login_pass)
+            ok, msg, user = login_user(li_email, li_pass)
             if ok:
                 set_session(user)
-                st.success(msg)
                 st.switch_page("app.py")
             else:
                 st.error(f"❌ {msg}")
 
-# ────────────────────────────────────────────────────────────────────────────
-# REGISTER
-# ────────────────────────────────────────────────────────────────────────────
+# ─── REGISTER ─────────────────────────────────────────────────────────────────
 with tab_register:
     st.markdown("<br>", unsafe_allow_html=True)
-    st.info("📋 After registration, an admin will review and activate your account. "
-            "You'll receive an email confirmation.")
+
+    # Info box — no email mentioned
+    st.markdown(f"""
+    <div style="background:rgba(0,188,212,0.1);border:1px solid rgba(0,188,212,0.3);
+                border-left:4px solid {DARK['accent']};border-radius:10px;
+                padding:0.9rem 1.1rem;margin-bottom:1rem;font-size:0.88rem">
+        <strong style="color:{DARK['accent']}">How it works</strong><br>
+        <span style="color:{DARK['text']}">
+            1. Fill in the form below and submit<br>
+            2. An admin will review and activate your account<br>
+            3. Come back and sign in once approved
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
 
     rc1, rc2 = st.columns(2)
     with rc1:
         reg_first = st.text_input("First name *", key="reg_first",
-                                  placeholder="Maria")
+                                   placeholder="Maria")
     with rc2:
         reg_last  = st.text_input("Last name *",  key="reg_last",
-                                  placeholder="Rossi")
+                                   placeholder="Rossi")
 
     reg_username = st.text_input("Username *", key="reg_uname",
-                                 placeholder="mariarossi")
+                                  placeholder="mariarossi  (min 3 characters)")
     reg_email    = st.text_input("Email address *", key="reg_email",
-                                 placeholder="you@example.com")
+                                  placeholder="you@example.com")
 
     rc3, rc4 = st.columns(2)
     with rc3:
-        reg_pass  = st.text_input("Password *",         type="password",
-                                  key="reg_pass",  placeholder="Min 8 characters")
+        reg_pass  = st.text_input("Password *", type="password",
+                                   key="reg_pass",
+                                   placeholder="Min 8 characters")
     with rc4:
         reg_pass2 = st.text_input("Confirm password *", type="password",
-                                  key="reg_pass2", placeholder="Repeat password")
+                                   key="reg_pass2",
+                                   placeholder="Repeat password")
 
     st.markdown("<br>", unsafe_allow_html=True)
     if st.button("Submit Registration →", type="primary",
@@ -133,49 +110,102 @@ with tab_register:
             st.warning("Please fill in all required fields.")
         else:
             ok, msg, user = register_user(
-                reg_email, reg_username,
-                reg_first, reg_last, reg_pass
+                reg_email, reg_username, reg_first, reg_last, reg_pass
             )
-            if ok and user:
-                # Send notification emails
-                email_ok, email_err = send_registration_emails(user)
-                st.success("✅ Registration submitted! You will receive a confirmation email.")
-                if not email_ok:
-                    st.warning(f"⚠️ Could not send notification emails: {email_err}")
-            elif ok:
-                st.success("✅ Registration submitted!")
+            if ok:
+                st.markdown(f"""
+                <div style="background:rgba(40,167,69,0.12);
+                            border:1px solid rgba(40,167,69,0.35);
+                            border-left:4px solid {DARK['success']};
+                            border-radius:10px;padding:1.1rem 1.3rem;
+                            margin-top:1rem">
+                    <div style="font-size:1.4rem;margin-bottom:0.4rem">✅</div>
+                    <strong style="color:{DARK['success']};font-size:1rem">
+                        Registration submitted!
+                    </strong><br>
+                    <span style="color:{DARK['text']};font-size:0.88rem">
+                        Your account is now <strong>pending admin approval</strong>.<br>
+                        Come back to the <strong>Sign In</strong> tab once you've been notified.
+                    </span>
+                </div>
+                """, unsafe_allow_html=True)
             else:
                 st.error(f"❌ {msg}")
 
-# ────────────────────────────────────────────────────────────────────────────
-# FORGOT PASSWORD
-# ────────────────────────────────────────────────────────────────────────────
-with tab_forgot:
+# ─── RESET PASSWORD ───────────────────────────────────────────────────────────
+with tab_reset:
     st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown(f"<p style='color:{DARK['muted']};font-size:0.9rem'>"
-                f"Enter your registered email address and we'll send you "
-                f"a link to reset your password.</p>",
-                unsafe_allow_html=True)
+    st.markdown(f"""
+    <div style="background:rgba(246,204,82,0.1);border:1px solid rgba(246,204,82,0.3);
+                border-left:4px solid {DARK['warning']};border-radius:10px;
+                padding:0.9rem 1.1rem;margin-bottom:1rem;font-size:0.88rem">
+        <strong style="color:{DARK['warning']}">How password reset works</strong><br>
+        <span style="color:{DARK['text']}">
+            Enter your email → we generate a reset token shown on this screen →
+            enter the token + your new password below.
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
 
-    forgot_email = st.text_input("Email address", key="fp_email",
-                                  placeholder="you@example.com")
-    st.markdown("<br>", unsafe_allow_html=True)
+    # ── Step 1: generate token ────────────────────────────────────────────────
+    st.markdown("**Step 1 — Get your reset token**")
+    fp_email = st.text_input("Your registered email", key="fp_email",
+                              placeholder="you@example.com")
 
-    if st.button("Send Reset Link →", type="primary",
-                 use_container_width=True, key="btn_forgot"):
-        if not forgot_email:
+    if st.button("Generate Reset Token", key="btn_gen_token"):
+        if not fp_email:
             st.warning("Please enter your email address.")
         else:
-            ok, msg = request_password_reset(forgot_email)
+            ok, result = generate_reset_token(fp_email)
+            if ok:
+                st.session_state["reset_token_display"] = result
+                st.success("Token generated! Copy it below.")
+            else:
+                st.error(f"❌ {result}")
+
+    if st.session_state.get("reset_token_display"):
+        tok = st.session_state["reset_token_display"]
+        st.markdown(f"""
+        <div style="background:{DARK['bg3']};border:1px solid {DARK['accent']}66;
+                    border-radius:8px;padding:0.8rem 1rem;margin:0.5rem 0">
+            <div style="color:{DARK['muted']};font-size:0.72rem;margin-bottom:4px">
+                YOUR RESET TOKEN — copy this
+            </div>
+            <code style="color:{DARK['accent']};font-size:0.85rem;
+                         word-break:break-all">{tok}</code>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("<br>**Step 2 — Set your new password**")
+
+    # ── Step 2: use token ─────────────────────────────────────────────────────
+    fp_token  = st.text_input("Paste reset token", key="fp_token",
+                               placeholder="Paste the token from above")
+    fp_newpw  = st.text_input("New password", type="password",
+                               key="fp_newpw",
+                               placeholder="At least 8 characters")
+    fp_newpw2 = st.text_input("Confirm new password", type="password",
+                               key="fp_newpw2",
+                               placeholder="Repeat new password")
+
+    if st.button("✅ Set New Password", type="primary",
+                 use_container_width=True, key="btn_reset"):
+        if fp_newpw != fp_newpw2:
+            st.error("❌ Passwords do not match.")
+        elif not fp_token or not fp_newpw:
+            st.warning("Please fill in all fields.")
+        else:
+            ok, msg = reset_password_with_token(fp_token, fp_newpw)
             if ok:
                 st.success(f"✅ {msg}")
+                st.session_state.pop("reset_token_display", None)
             else:
                 st.error(f"❌ {msg}")
 
 # Footer
 st.markdown(f"""
-<div style="text-align:center;margin-top:2rem;color:{DARK['muted']};
-            font-size:0.72rem">
-    Octa Platform · v1.0.0 · Questions? octainsight@gmail.com
+<div style="text-align:center;margin-top:2.5rem;
+            color:{DARK['muted']};font-size:0.72rem">
+    Octa Platform · Questions? octainsight@gmail.com
 </div>
 """, unsafe_allow_html=True)
