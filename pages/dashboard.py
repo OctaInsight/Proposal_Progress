@@ -278,23 +278,35 @@ if f_search:
     )
     filtered = filtered[mask]
 
-# Sort — default descending by proposal_id (newest first)
-sort_asc = sort_col not in ("proposal_id",)   # id always descending
-filtered = filtered.sort_values(sort_col, ascending=sort_asc, na_position="last")
+# ── Numeric sort on proposal_id (extract trailing number) ────────────────────
+def _pid_num(pid):
+    """Extract trailing integer from 'Octa_Proposal_27' → 27."""
+    try:
+        return int(str(pid).split("_")[-1])
+    except Exception:
+        return 0
+
+if sort_col == "proposal_id":
+    filtered = filtered.copy()
+    filtered["_sort_num"] = filtered["proposal_id"].apply(_pid_num)
+    filtered = filtered.sort_values("_sort_num", ascending=False, na_position="last")
+    filtered = filtered.drop(columns=["_sort_num"])
+else:
+    filtered = filtered.sort_values(sort_col, ascending=True, na_position="last")
 
 # ── Status colour palette ─────────────────────────────────────────────────────
-# border colour | background tint | emoji icon
 STATUS_CARD = {
-    "Funded":         ("#28a745", "rgba(40,167,69,0.08)",   "🏆"),
-    "Submitted":      ("#00BCD4", "rgba(0,188,212,0.07)",   "📤"),
-    "In preparation": ("#f6cc52", "rgba(246,204,82,0.07)",  "✍️"),
-    "Planned":        ("#8899b0", "rgba(136,153,176,0.06)", "📅"),
-    "Missed":         ("#f6ad55", "rgba(246,173,85,0.08)",  "⏭️"),
-    "Rejected":       ("#fc8181", "rgba(252,129,129,0.08)", "❌"),
-    "Ended":          ("#6b7280", "rgba(107,114,128,0.07)", "🏁"),
+    "Funded":         ("#28a745", "rgba(40,167,69,0.15)",    "#1a3d22", "🏆"),
+    "Submitted":      ("#00BCD4", "rgba(0,188,212,0.13)",    "#0a2a30", "📤"),
+    "In preparation": ("#f6cc52", "rgba(246,204,82,0.13)",   "#2e2a10", "✍️"),
+    "Planned":        ("#8899b0", "rgba(136,153,176,0.11)",  "#1e2535", "📅"),
+    "Missed":         ("#f6ad55", "rgba(246,173,85,0.14)",   "#2e2010", "⏭️"),
+    "Rejected":       ("#fc8181", "rgba(252,129,129,0.14)",  "#301515", "❌"),
+    "Ended":          ("#6b7280", "rgba(107,114,128,0.13)",  "#1c1f25", "🏁"),
 }
+DEFAULT_CARD = ("#8899b0", "rgba(136,153,176,0.10)", "#1e2535", "📋")
 
-# Filtered totals
+# ── Filtered totals ───────────────────────────────────────────────────────────
 f_octa  = filtered["octa_budget"].sum()
 f_total = filtered["total_budget"].sum()
 st.markdown(
@@ -308,7 +320,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# ── Proposal cards ────────────────────────────────────────────────────────────
+# ── Proposal cards (custom HTML — no expander, full colour control) ───────────
 for _, row in filtered.iterrows():
     pid    = row.get("proposal_id", "")
     title  = row.get("proposal_title", "") or row.get("acronym", "") or pid
@@ -318,116 +330,146 @@ for _, row in filtered.iterrows():
     tot_b  = float(row.get("total_budget") or 0)
     octa_pct = (octa_b / tot_b * 100) if tot_b > 0 else 0
 
-    # Status colour theme
-    s_border, s_bg, s_icon = STATUS_CARD.get(
-        status, ("#8899b0", "rgba(136,153,176,0.06)", "📋")
-    )
+    s_border, s_bg, s_dark, s_icon = STATUS_CARD.get(status, DEFAULT_CARD)
 
-    # Coloured header strip rendered ABOVE the expander
+    # Toggle state
+    exp_key = f"exp_{pid}"
+    if exp_key not in st.session_state:
+        st.session_state[exp_key] = False
+    is_open = st.session_state[exp_key]
+
+    # ── Collapsed header (always visible) ────────────────────────────────────
     st.markdown(f"""
     <div style="
         background:{s_bg};
-        border-left:5px solid {s_border};
-        border-radius:10px 10px 0 0;
-        padding:0.55rem 1rem 0.45rem;
-        margin-bottom:-8px;
-        display:flex; align-items:center; gap:0.7rem;
-        flex-wrap:wrap;">
-        <span style="font-size:1.1rem">{s_icon}</span>
-        <span style="color:{s_border};font-weight:700;font-size:0.82rem;
-                     text-transform:uppercase;letter-spacing:0.06em">
+        border:1px solid {s_border}55;
+        border-left:6px solid {s_border};
+        border-radius:{'10px 10px 0 0' if is_open else '10px'};
+        padding:0.7rem 1.1rem;
+        margin-top:0.5rem;
+        {'margin-bottom:0' if is_open else 'margin-bottom:0.1rem'};
+        display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
+        <span style="font-size:1.15rem">{s_icon}</span>
+        <span style="
+            background:{s_border}33; color:{s_border};
+            font-weight:700; font-size:0.72rem;
+            text-transform:uppercase; letter-spacing:0.07em;
+            padding:2px 8px; border-radius:20px; border:1px solid {s_border}55">
             {status}
         </span>
-        <span style="color:{D['muted']};font-size:0.78rem">|</span>
-        <span style="color:{D['text']};font-weight:600;font-size:0.9rem">
-            {pid}
+        <span style="color:{s_border};font-weight:700;font-size:0.95rem;
+                     font-family:monospace">{pid}</span>
+        <span style="color:{D['muted']};font-size:0.8rem">—</span>
+        <span style="color:{D['text']};font-size:0.88rem;font-weight:500;flex:1">
+            {title[:65]}{'…' if len(title)>65 else ''}
         </span>
-        <span style="color:{D['muted']};font-size:0.78rem">—</span>
-        <span style="color:{D['text']};font-size:0.88rem">
-            {title[:60]}{'…' if len(title)>60 else ''}
-        </span>
-        <span style="margin-left:auto;color:{D['accent2']};font-size:0.82rem;
-                     font-weight:600">
+        <span style="color:{D['accent2']};font-size:0.82rem;font-weight:600;
+                     white-space:nowrap">
             Octa: {fmt_eur(octa_b)}
+        </span>
+        <span style="color:{D['muted']};font-size:0.78rem;white-space:nowrap">
+            Total: {fmt_eur(tot_b)}
         </span>
     </div>
     """, unsafe_allow_html=True)
 
-    with st.expander("▼  Details & Actions", expanded=False):
-        oc1, oc2, oc3, oc4 = st.columns(4)
-        with oc1:
-            st.markdown(f"**Status:** {status}")
-            st.markdown(f"**Acronym:** {row.get('acronym','—')}")
-        with oc2:
-            st.markdown(f"**Deadline:** {ddl or '—'}")
-            st.markdown(f"**Duration:** {int(row.get('duration_months', 0))} months")
-        with oc3:
-            st.markdown(f"**Octa Budget:** {fmt_eur(octa_b)}")
-            st.markdown(f"**Total Budget:** {fmt_eur(tot_b)}")
-            st.markdown(
-                f"<span style='color:{D['muted']};font-size:0.8rem'>"
-                f"Octa share: {octa_pct:.1f}%</span>",
-                unsafe_allow_html=True
-            )
-        with oc4:
-            st.markdown(f"**Responsible:** {row.get('responsible_person','—')}")
-            st.markdown(f"**Main Writer:** {row.get('main_writer','—')}")
-            sr = row.get("success_rate", 0)
-            if sr:
-                st.markdown(f"**Success Rate:** {float(sr or 0):.2f}%")
+    # Toggle button sits flush with the header
+    btn_label = "▲ Hide" if is_open else "▼ Details"
+    if st.button(btn_label, key=f"btn_{pid}",
+                 help=f"{'Collapse' if is_open else 'Expand'} proposal details"):
+        st.session_state[exp_key] = not is_open
+        st.rerun()
 
-        # Octa share bar
-        st.markdown(f"""
-        <div style="margin:0.6rem 0 0.2rem">
-            <div style="font-size:0.75rem;color:{D['muted']};margin-bottom:3px">
-                Octa budget share of total
+    # ── Expanded body ─────────────────────────────────────────────────────────
+    if is_open:
+        with st.container():
+            st.markdown(f"""
+            <div style="
+                background:{s_dark};
+                border:1px solid {s_border}44;
+                border-top:none; border-left:6px solid {s_border};
+                border-radius:0 0 10px 10px;
+                padding:1rem 1.2rem 1rem;
+                margin-bottom:0.4rem">
+            """, unsafe_allow_html=True)
+
+            oc1, oc2, oc3, oc4 = st.columns(4)
+            with oc1:
+                st.markdown(f"**Status:** {status}")
+                st.markdown(f"**Acronym:** {row.get('acronym','—')}")
+            with oc2:
+                st.markdown(f"**Deadline:** {ddl or '—'}")
+                st.markdown(f"**Duration:** {int(row.get('duration_months',0))} months")
+            with oc3:
+                st.markdown(f"**Octa Budget:** {fmt_eur(octa_b)}")
+                st.markdown(f"**Total Budget:** {fmt_eur(tot_b)}")
+                st.markdown(
+                    f"<span style='color:{D['muted']};font-size:0.8rem'>"
+                    f"Octa share: {octa_pct:.1f}%</span>",
+                    unsafe_allow_html=True
+                )
+            with oc4:
+                st.markdown(f"**Responsible:** {row.get('responsible_person','—')}")
+                st.markdown(f"**Main Writer:** {row.get('main_writer','—')}")
+                sr = row.get("success_rate", 0)
+                if sr:
+                    st.markdown(f"**Success Rate:** {float(sr or 0):.2f}%")
+
+            # Octa share progress bar
+            st.markdown(f"""
+            <div style="margin:0.7rem 0 0.3rem">
+                <div style="font-size:0.74rem;color:{D['muted']};margin-bottom:4px">
+                    Octa share of total budget
+                </div>
+                <div style="background:rgba(255,255,255,0.08);border-radius:4px;height:8px">
+                    <div style="background:{s_border};border-radius:4px;
+                                height:8px;width:{min(octa_pct,100):.1f}%"></div>
+                </div>
             </div>
-            <div style="background:{D['bg3']};border-radius:4px;height:8px;width:100%">
-                <div style="background:{s_border};border-radius:4px;
-                            height:8px;width:{min(octa_pct,100):.1f}%"></div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
 
-        # Links
-        links_html = ""
-        if row.get("link_to_call"):
-            links_html += link_html(row["link_to_call"], "🔗 Call") + "&nbsp;&nbsp;"
-        if row.get("google_drive_link"):
-            links_html += link_html(row["google_drive_link"], "📁 Drive")
-        if links_html:
-            st.markdown(links_html, unsafe_allow_html=True)
+            # Links
+            links_html = ""
+            if row.get("link_to_call"):
+                links_html += link_html(row["link_to_call"], "🔗 Call") + "&nbsp;&nbsp;"
+            if row.get("google_drive_link"):
+                links_html += link_html(row["google_drive_link"], "📁 Drive")
+            if links_html:
+                st.markdown(links_html, unsafe_allow_html=True)
 
-        # Consortium
-        partners_list   = row.get("partners_list")   or []
-        associates_list = row.get("associates_list") or []
-        if isinstance(partners_list,   str): partners_list   = []
-        if isinstance(associates_list, str): associates_list = []
+            # Consortium
+            partners_list   = row.get("partners_list")   or []
+            associates_list = row.get("associates_list") or []
+            if isinstance(partners_list,   str): partners_list   = []
+            if isinstance(associates_list, str): associates_list = []
+            if row.get("coordinator") or partners_list:
+                st.markdown(
+                    f"<div class='section-label' style='margin-top:0.8rem'>"
+                    f"Consortium</div>", unsafe_allow_html=True)
+                if row.get("coordinator"):
+                    st.markdown(f"**🏛 Coord:** {row['coordinator']}")
+                if partners_list:
+                    st.markdown("**Partners:** " + " · ".join(partners_list))
+                if associates_list:
+                    st.markdown("**Associates:** " + " · ".join(associates_list))
 
-        if row.get("coordinator") or partners_list:
-            st.markdown("<div class='section-label' style='margin-top:0.8rem'>"
-                        "Consortium</div>", unsafe_allow_html=True)
-            if row.get("coordinator"):
-                st.markdown(f"**🏛 Coord:** {row['coordinator']}")
-            if partners_list:
-                st.markdown("**Partners:** " + " · ".join(partners_list))
-            if associates_list:
-                st.markdown("**Associates:** " + " · ".join(associates_list))
+            # Actions
+            if any(row.get(f"action_{k}","") for k in ["tamer","yasin","haseeb","other"]):
+                st.markdown(
+                    f"<div class='section-label' style='margin-top:0.8rem'>"
+                    f"Actions</div>", unsafe_allow_html=True)
+                for person in ["Tamer","Yasin","Haseeb","Other"]:
+                    val = row.get(f"action_{person.lower()}", "")
+                    if val:
+                        st.markdown(f"**{person}:** {val}")
 
-        # Actions
-        if any(row.get(f"action_{k}", "") for k in ["tamer","yasin","haseeb","other"]):
-            st.markdown("<div class='section-label' style='margin-top:0.8rem'>"
-                        "Actions</div>", unsafe_allow_html=True)
-            for person in ["Tamer","Yasin","Haseeb","Other"]:
-                val = row.get(f"action_{person.lower()}", "")
-                if val:
-                    st.markdown(f"**{person}:** {val}")
+            if row.get("comment"):
+                st.markdown(f"**💬 Comment:** {row['comment']}")
 
-        if row.get("comment"):
-            st.markdown(f"**💬 Comment:** {row['comment']}")
+            st.markdown("</div>", unsafe_allow_html=True)
+            st.markdown("<br>", unsafe_allow_html=True)
 
-        st.markdown("<hr style='margin:0.8rem 0'>", unsafe_allow_html=True)
+            if st.button("✏️ Edit Proposal", key=f"edit_{pid}", type="primary"):
+                st.session_state["edit_proposal_id"] = pid
+                st.switch_page("pages/proposal_form.py")
 
-        if st.button("✏️ Edit Proposal", key=f"edit_{pid}", type="primary"):
-            st.session_state["edit_proposal_id"] = pid
-            st.switch_page("pages/proposal_form.py")
