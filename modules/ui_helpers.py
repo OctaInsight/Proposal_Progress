@@ -33,15 +33,54 @@ label, .stTextInput label, .stSelectbox label,
     box-shadow: 4px 0 20px rgba(0,188,212,0.1) !important;
 }}
 [data-testid="stSidebar"] * {{ color: {DARK['text']} !important; }}
-[data-testid="stSidebar"] .stButton > button {{
-    background: rgba(255,255,255,0.08) !important;
-    border: 1px solid rgba(255,255,255,0.15) !important;
-    border-radius: 8px; width: 100%;
+
+/* Hide Streamlit's auto-generated page navigation completely */
+[data-testid="stSidebarNav"] {{
+    display: none !important;
 }}
-[data-testid="stSidebar"] .stButton > button:hover {{
+
+/* Style st.page_link as nav buttons */
+[data-testid="stSidebar"] [data-testid="stPageLink"] {{
+    width: 100% !important;
+    display: block !important;
+}}
+[data-testid="stSidebar"] [data-testid="stPageLink"] a {{
+    display: block !important;
+    width: 100% !important;
+    padding: 0.45rem 0.8rem !important;
+    border-radius: 8px !important;
+    background: rgba(255,255,255,0.05) !important;
+    border: 1px solid rgba(255,255,255,0.08) !important;
+    color: {DARK['text']} !important;
+    text-decoration: none !important;
+    font-size: 0.88rem !important;
+    margin-bottom: 3px !important;
+    transition: all 0.18s !important;
+}}
+[data-testid="stSidebar"] [data-testid="stPageLink"] a:hover {{
     background: {DARK['accent']}22 !important;
+    border-color: {DARK['accent']}66 !important;
+    color: {DARK['accent']} !important;
+}}
+[data-testid="stSidebar"] [data-testid="stPageLink-active"] a {{
+    background: {DARK['accent']}30 !important;
     border-color: {DARK['accent']} !important;
     color: {DARK['accent']} !important;
+    font-weight: 600 !important;
+}}
+
+/* Sign out button in sidebar */
+[data-testid="stSidebar"] .stButton > button {{
+    background: rgba(252,129,129,0.12) !important;
+    border: 1px solid rgba(252,129,129,0.3) !important;
+    border-radius: 8px !important;
+    width: 100% !important;
+    color: {DARK['danger']} !important;
+    font-size: 0.85rem !important;
+}}
+[data-testid="stSidebar"] .stButton > button:hover {{
+    background: rgba(252,129,129,0.25) !important;
+    border-color: {DARK['danger']} !important;
 }}
 
 /* Inputs */
