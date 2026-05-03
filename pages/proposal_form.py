@@ -11,7 +11,7 @@ from modules.database import (
     upsert_proposal, get_all_partners, _safe_date
 )
 from modules.sheets import write_proposal_to_sheet
-from modules.ui_helpers import inject_css, page_header, section_label, DARK
+from modules.ui_helpers import sidebar_nav, inject_css, page_header, section_label, DARK
 from config import (
     PES_FUND_OPTIONS, STATUS_OPTIONS, MANDATE_OPTIONS, CLOUDEARTI_OPTIONS,
 )
@@ -19,6 +19,7 @@ from config import (
 st.set_page_config(page_title="Proposal Form — Octa Proposals",
                    page_icon="📝", layout="wide")
 inject_css()
+sidebar_nav()
 
 # ── Mode: new vs edit ─────────────────────────────────────────────────────────
 edit_pid = st.session_state.get("edit_proposal_id")
