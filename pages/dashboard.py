@@ -47,9 +47,11 @@ for col in ["octa_budget", "total_budget", "success_rate", "duration_months"]:
     if col in df.columns:
         df[col] = _to_num(df[col])
 
-# Pre-compute totals
-total_portfolio   = df["total_budget"].sum()
-total_octa        = df["octa_budget"].sum()
+# Pre-compute totals — only Submitted + Funded count toward budget KPIs
+ACTIVE_STATUSES = {"Submitted", "Funded"}
+active_df         = df[df["status"].isin(ACTIVE_STATUSES)]
+total_portfolio   = active_df["total_budget"].sum()
+total_octa        = active_df["octa_budget"].sum()
 octa_share_pct    = (total_octa / total_portfolio * 100) if total_portfolio > 0 else 0
 
 status_colors = {
@@ -306,170 +308,206 @@ STATUS_CARD = {
 }
 DEFAULT_CARD = ("#8899b0", "rgba(136,153,176,0.10)", "#1e2535", "📋")
 
-# ── Filtered totals ───────────────────────────────────────────────────────────
-f_octa  = filtered["octa_budget"].sum()
-f_total = filtered["total_budget"].sum()
+# ── Filtered totals (only Submitted + Funded) ────────────────────────────────
+f_active = filtered[filtered["status"].isin(ACTIVE_STATUSES)]
+f_octa   = f_active["octa_budget"].sum()
+f_total  = f_active["total_budget"].sum()
 st.markdown(
     f"<p style='color:{D['muted']};font-size:0.85rem;margin-bottom:0.8rem'>"
     f"Showing <strong style='color:{D['text']}'>{len(filtered)}</strong> of {len(df)} proposals"
     f"&nbsp;&nbsp;·&nbsp;&nbsp;"
-    f"Octa budget in view: <strong style='color:{D['accent2']}'>{fmt_eur(f_octa)}</strong>"
+    f"Submitted+Funded Octa: <strong style='color:{D['accent2']}'>{fmt_eur(f_octa)}</strong>"
     f"&nbsp;&nbsp;·&nbsp;&nbsp;"
-    f"Total budget in view: <strong style='color:{D['accent']}'>{fmt_eur(f_total)}</strong>"
+    f"Submitted+Funded Total: <strong style='color:{D['accent']}'>{fmt_eur(f_total)}</strong>"
     f"</p>",
     unsafe_allow_html=True
 )
 
-# ── Proposal cards (custom HTML — no expander, full colour control) ───────────
+# ── Proposal cards — full HTML, guaranteed colours ────────────────────────────
 for _, row in filtered.iterrows():
     pid    = row.get("proposal_id", "")
     title  = row.get("proposal_title", "") or row.get("acronym", "") or pid
-    status = row.get("status", "")
-    ddl    = str(row.get("deadline") or "")
-    octa_b = float(row.get("octa_budget")  or 0)
-    tot_b  = float(row.get("total_budget") or 0)
+    acronym = row.get("acronym", "") or "—"
+    status  = row.get("status", "")
+    ddl     = str(row.get("deadline") or "—")
+    sub_dt  = str(row.get("submission_date") or "—")
+    octa_b  = float(row.get("octa_budget")  or 0)
+    tot_b   = float(row.get("total_budget") or 0)
     octa_pct = (octa_b / tot_b * 100) if tot_b > 0 else 0
+    responsible = row.get("responsible_person", "—") or "—"
+    writer      = row.get("main_writer", "—") or "—"
+    sr          = row.get("success_rate", 0) or 0
+    duration    = int(row.get("duration_months", 0) or 0)
+    coordinator = row.get("coordinator", "") or ""
+    call_link   = row.get("link_to_call", "") or ""
+    drive_link  = row.get("google_drive_link", "") or ""
+    comment     = row.get("comment", "") or ""
+
+    partners_list   = row.get("partners_list")   or []
+    associates_list = row.get("associates_list") or []
+    if isinstance(partners_list,   str): partners_list   = []
+    if isinstance(associates_list, str): associates_list = []
+
+    # Actions
+    actions = {p: row.get(f"action_{p.lower()}", "") or ""
+               for p in ["Tamer","Yasin","Haseeb","Other"]}
+    actions_html = ""
+    for person, val in actions.items():
+        if val:
+            actions_html += (
+                f"<div style='margin-bottom:3px'>"
+                f"<span style='color:{s_border};font-weight:600'>{person}:</span> "
+                f"<span style='color:{D['text']}'>{val}</span></div>"
+            )
 
     s_border, s_bg, s_dark, s_icon = STATUS_CARD.get(status, DEFAULT_CARD)
+    # Pre-compute HTML fragments that would cause quote conflicts inside f-strings
+    comment_html = (
+        f"<div style='margin-top:0.6rem;font-size:0.84rem;color:{D['muted']}'>"
+        f"<b style='color:{D['text']}'>💬 Comment:</b> {comment}</div>"
+        if comment else ""
+    )
+    actions_div = (
+        f"<div style='border-top:1px solid {s_border}33;margin-top:0.8rem;"
+        f"padding-top:0.7rem;font-size:0.84rem'>{actions_html}</div>"
+        if actions_html else ""
+    )
 
-    # Toggle state
-    exp_key = f"exp_{pid}"
-    if exp_key not in st.session_state:
-        st.session_state[exp_key] = False
-    is_open = st.session_state[exp_key]
+    # Links HTML
+    link_parts = []
+    if call_link:
+        link_parts.append(
+            f"<a href='{call_link}' target='_blank' style='color:{D['accent']};"
+            f"text-decoration:none;font-size:0.82rem;margin-right:1rem'>"
+            f"🔗 Call Page</a>")
+    if drive_link:
+        link_parts.append(
+            f"<a href='{drive_link}' target='_blank' style='color:{D['accent']};"
+            f"text-decoration:none;font-size:0.82rem'>"
+            f"📁 Google Drive</a>")
 
-    # ── Collapsed header (always visible) ────────────────────────────────────
+    # Consortium
+    cons_parts = []
+    if coordinator:
+        cons_parts.append(f"<b>🏛 Coord:</b> {coordinator}")
+    if partners_list:
+        cons_parts.append("<b>Partners:</b> " + " · ".join(partners_list))
+    if associates_list:
+        cons_parts.append("<b>Associates:</b> " + " · ".join(associates_list))
+
+    consortium_html = ""
+    if cons_parts:
+        consortium_html = f"""
+        <div style='border-top:1px solid {s_border}33;margin-top:0.8rem;
+                    padding-top:0.7rem;font-size:0.84rem;color:{D["text"]};
+                    line-height:1.7'>
+            {"<br>".join(cons_parts)}
+        </div>"""
+
+    # Render full card as one HTML block
     st.markdown(f"""
     <div style="
         background:{s_bg};
-        border:1px solid {s_border}55;
+        border:1px solid {s_border}66;
         border-left:6px solid {s_border};
-        border-radius:{'10px 10px 0 0' if is_open else '10px'};
-        padding:0.7rem 1.1rem;
-        margin-top:0.5rem;
-        {'margin-bottom:0' if is_open else 'margin-bottom:0.1rem'};
-        display:flex; align-items:center; gap:0.6rem; flex-wrap:wrap;">
-        <span style="font-size:1.15rem">{s_icon}</span>
-        <span style="
-            background:{s_border}33; color:{s_border};
-            font-weight:700; font-size:0.72rem;
-            text-transform:uppercase; letter-spacing:0.07em;
-            padding:2px 8px; border-radius:20px; border:1px solid {s_border}55">
-            {status}
-        </span>
-        <span style="color:{s_border};font-weight:700;font-size:0.95rem;
-                     font-family:monospace">{pid}</span>
-        <span style="color:{D['muted']};font-size:0.8rem">—</span>
-        <span style="color:{D['text']};font-size:0.88rem;font-weight:500;flex:1">
-            {title[:65]}{'…' if len(title)>65 else ''}
-        </span>
-        <span style="color:{D['accent2']};font-size:0.82rem;font-weight:600;
-                     white-space:nowrap">
-            Octa: {fmt_eur(octa_b)}
-        </span>
-        <span style="color:{D['muted']};font-size:0.78rem;white-space:nowrap">
-            Total: {fmt_eur(tot_b)}
-        </span>
+        border-radius:12px;
+        padding:1rem 1.3rem 1.1rem;
+        margin:0.45rem 0 0.1rem;
+    ">
+        <!-- Header row -->
+        <div style="display:flex;align-items:center;gap:0.6rem;
+                    flex-wrap:wrap;margin-bottom:0.75rem">
+            <span style="font-size:1.2rem">{s_icon}</span>
+            <span style="background:{s_border}30;color:{s_border};
+                         font-weight:700;font-size:0.7rem;
+                         text-transform:uppercase;letter-spacing:0.08em;
+                         padding:2px 9px;border-radius:20px;
+                         border:1px solid {s_border}66">{status}</span>
+            <span style="color:{s_border};font-weight:700;font-size:0.95rem;
+                         font-family:monospace">{pid}</span>
+            <span style="color:{D['muted']}">·</span>
+            <span style="color:{D['text']};font-size:0.9rem;font-weight:600;
+                         flex:1;min-width:0">
+                {title[:70]}{'…' if len(title)>70 else ''}
+            </span>
+        </div>
+
+        <!-- Data grid -->
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);
+                    gap:0.6rem 1.2rem;font-size:0.84rem">
+            <div>
+                <div style="color:{D['muted']};font-size:0.72rem;margin-bottom:2px">
+                    ACRONYM</div>
+                <div style="color:{D['text']};font-weight:600">{acronym}</div>
+            </div>
+            <div>
+                <div style="color:{D['muted']};font-size:0.72rem;margin-bottom:2px">
+                    DEADLINE</div>
+                <div style="color:{D['text']}">{ddl}</div>
+            </div>
+            <div>
+                <div style="color:{D['muted']};font-size:0.72rem;margin-bottom:2px">
+                    RESPONSIBLE</div>
+                <div style="color:{D['text']}">{responsible}</div>
+            </div>
+            <div>
+                <div style="color:{D['muted']};font-size:0.72rem;margin-bottom:2px">
+                    MAIN WRITER</div>
+                <div style="color:{D['text']}">{writer}</div>
+            </div>
+            <div>
+                <div style="color:{D['muted']};font-size:0.72rem;margin-bottom:2px">
+                    OCTA BUDGET</div>
+                <div style="color:{D['accent2']};font-weight:700">{fmt_eur(octa_b)}</div>
+            </div>
+            <div>
+                <div style="color:{D['muted']};font-size:0.72rem;margin-bottom:2px">
+                    TOTAL BUDGET</div>
+                <div style="color:{D['accent']};font-weight:700">{fmt_eur(tot_b)}</div>
+            </div>
+            <div>
+                <div style="color:{D['muted']};font-size:0.72rem;margin-bottom:2px">
+                    DURATION</div>
+                <div style="color:{D['text']}">{duration} months</div>
+            </div>
+            <div>
+                <div style="color:{D['muted']};font-size:0.72rem;margin-bottom:2px">
+                    SUCCESS RATE</div>
+                <div style="color:{D['text']}">{f'{float(sr):.1f}%' if sr else '—'}</div>
+            </div>
+        </div>
+
+        <!-- Octa share bar -->
+        <div style="margin:0.8rem 0 0.5rem">
+            <div style="display:flex;justify-content:space-between;
+                        font-size:0.72rem;color:{D['muted']};margin-bottom:4px">
+                <span>Octa share of total budget</span>
+                <span style="color:{s_border}">{octa_pct:.1f}%</span>
+            </div>
+            <div style="background:rgba(255,255,255,0.1);border-radius:4px;height:6px">
+                <div style="background:{s_border};border-radius:4px;height:6px;
+                            width:{min(octa_pct,100):.1f}%"></div>
+            </div>
+        </div>
+
+        <!-- Links -->
+        {"<div style='margin-bottom:0.6rem'>" + " ".join(link_parts) + "</div>"
+          if link_parts else ""}
+
+        <!-- Consortium -->
+        {consortium_html}
+
+        <!-- Actions -->
+        {actions_div}
+
+        <!-- Comment -->
+        {comment_html}
     </div>
     """, unsafe_allow_html=True)
 
-    # Toggle button sits flush with the header
-    btn_label = "▲ Hide" if is_open else "▼ Details"
-    if st.button(btn_label, key=f"btn_{pid}",
-                 help=f"{'Collapse' if is_open else 'Expand'} proposal details"):
-        st.session_state[exp_key] = not is_open
-        st.rerun()
+    # Edit button sits flush below each card
+    if st.button(f"✏️ Edit {pid}", key=f"edit_{pid}"):
+        st.session_state["edit_proposal_id"] = pid
+        st.switch_page("pages/proposal_form.py")
 
-    # ── Expanded body ─────────────────────────────────────────────────────────
-    if is_open:
-        with st.container():
-            st.markdown(f"""
-            <div style="
-                background:{s_dark};
-                border:1px solid {s_border}44;
-                border-top:none; border-left:6px solid {s_border};
-                border-radius:0 0 10px 10px;
-                padding:1rem 1.2rem 1rem;
-                margin-bottom:0.4rem">
-            """, unsafe_allow_html=True)
-
-            oc1, oc2, oc3, oc4 = st.columns(4)
-            with oc1:
-                st.markdown(f"**Status:** {status}")
-                st.markdown(f"**Acronym:** {row.get('acronym','—')}")
-            with oc2:
-                st.markdown(f"**Deadline:** {ddl or '—'}")
-                st.markdown(f"**Duration:** {int(row.get('duration_months',0))} months")
-            with oc3:
-                st.markdown(f"**Octa Budget:** {fmt_eur(octa_b)}")
-                st.markdown(f"**Total Budget:** {fmt_eur(tot_b)}")
-                st.markdown(
-                    f"<span style='color:{D['muted']};font-size:0.8rem'>"
-                    f"Octa share: {octa_pct:.1f}%</span>",
-                    unsafe_allow_html=True
-                )
-            with oc4:
-                st.markdown(f"**Responsible:** {row.get('responsible_person','—')}")
-                st.markdown(f"**Main Writer:** {row.get('main_writer','—')}")
-                sr = row.get("success_rate", 0)
-                if sr:
-                    st.markdown(f"**Success Rate:** {float(sr or 0):.2f}%")
-
-            # Octa share progress bar
-            st.markdown(f"""
-            <div style="margin:0.7rem 0 0.3rem">
-                <div style="font-size:0.74rem;color:{D['muted']};margin-bottom:4px">
-                    Octa share of total budget
-                </div>
-                <div style="background:rgba(255,255,255,0.08);border-radius:4px;height:8px">
-                    <div style="background:{s_border};border-radius:4px;
-                                height:8px;width:{min(octa_pct,100):.1f}%"></div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-            # Links
-            links_html = ""
-            if row.get("link_to_call"):
-                links_html += link_html(row["link_to_call"], "🔗 Call") + "&nbsp;&nbsp;"
-            if row.get("google_drive_link"):
-                links_html += link_html(row["google_drive_link"], "📁 Drive")
-            if links_html:
-                st.markdown(links_html, unsafe_allow_html=True)
-
-            # Consortium
-            partners_list   = row.get("partners_list")   or []
-            associates_list = row.get("associates_list") or []
-            if isinstance(partners_list,   str): partners_list   = []
-            if isinstance(associates_list, str): associates_list = []
-            if row.get("coordinator") or partners_list:
-                st.markdown(
-                    f"<div class='section-label' style='margin-top:0.8rem'>"
-                    f"Consortium</div>", unsafe_allow_html=True)
-                if row.get("coordinator"):
-                    st.markdown(f"**🏛 Coord:** {row['coordinator']}")
-                if partners_list:
-                    st.markdown("**Partners:** " + " · ".join(partners_list))
-                if associates_list:
-                    st.markdown("**Associates:** " + " · ".join(associates_list))
-
-            # Actions
-            if any(row.get(f"action_{k}","") for k in ["tamer","yasin","haseeb","other"]):
-                st.markdown(
-                    f"<div class='section-label' style='margin-top:0.8rem'>"
-                    f"Actions</div>", unsafe_allow_html=True)
-                for person in ["Tamer","Yasin","Haseeb","Other"]:
-                    val = row.get(f"action_{person.lower()}", "")
-                    if val:
-                        st.markdown(f"**{person}:** {val}")
-
-            if row.get("comment"):
-                st.markdown(f"**💬 Comment:** {row['comment']}")
-
-            st.markdown("</div>", unsafe_allow_html=True)
-            st.markdown("<br>", unsafe_allow_html=True)
-
-            if st.button("✏️ Edit Proposal", key=f"edit_{pid}", type="primary"):
-                st.session_state["edit_proposal_id"] = pid
-                st.switch_page("pages/proposal_form.py")
 
