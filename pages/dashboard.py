@@ -400,113 +400,85 @@ for _, row in filtered.iterrows():
 
     consortium_html = ""
     if cons_parts:
-        consortium_html = f"""
-        <div style='border-top:1px solid {s_border}33;margin-top:0.8rem;
-                    padding-top:0.7rem;font-size:0.84rem;color:{D["text"]};
-                    line-height:1.7'>
-            {"<br>".join(cons_parts)}
-        </div>"""
+        consortium_html = (
+            f"<div style='border-top:1px solid {s_border}33;margin-top:0.8rem;"
+            f"padding-top:0.7rem;font-size:0.84rem;color:{D['text']};line-height:1.7'>"
+            + "<br>".join(cons_parts)
+            + "</div>"
+        )
 
-    # Render full card as one HTML block
-    st.markdown(f"""
-    <div style="
-        background:{s_bg};
-        border:1px solid {s_border}66;
-        border-left:6px solid {s_border};
-        border-radius:12px;
-        padding:1rem 1.3rem 1.1rem;
-        margin:0.45rem 0 0.1rem;
-    ">
-        <!-- Header row -->
-        <div style="display:flex;align-items:center;gap:0.6rem;
-                    flex-wrap:wrap;margin-bottom:0.75rem">
-            <span style="font-size:1.2rem">{s_icon}</span>
-            <span style="background:{s_border}30;color:{s_border};
-                         font-weight:700;font-size:0.7rem;
-                         text-transform:uppercase;letter-spacing:0.08em;
-                         padding:2px 9px;border-radius:20px;
-                         border:1px solid {s_border}66">{status}</span>
-            <span style="color:{s_border};font-weight:700;font-size:0.95rem;
-                         font-family:monospace">{pid}</span>
-            <span style="color:{D['muted']}">·</span>
-            <span style="color:{D['text']};font-size:0.9rem;font-weight:600;
-                         flex:1;min-width:0">
-                {title[:70]}{'…' if len(title)>70 else ''}
-            </span>
-        </div>
+    # ── Render card — no HTML comments, no 4-space indentation (breaks markdown) ──
+    import html as _html
+    def esc(v): return _html.escape(str(v or ""))
 
-        <!-- Data grid -->
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);
-                    gap:0.6rem 1.2rem;font-size:0.84rem">
-            <div>
-                <div style="color:{D['muted']};font-size:0.72rem;margin-bottom:2px">
-                    ACRONYM</div>
-                <div style="color:{D['text']};font-weight:600">{acronym}</div>
-            </div>
-            <div>
-                <div style="color:{D['muted']};font-size:0.72rem;margin-bottom:2px">
-                    DEADLINE</div>
-                <div style="color:{D['text']}">{ddl}</div>
-            </div>
-            <div>
-                <div style="color:{D['muted']};font-size:0.72rem;margin-bottom:2px">
-                    RESPONSIBLE</div>
-                <div style="color:{D['text']}">{responsible}</div>
-            </div>
-            <div>
-                <div style="color:{D['muted']};font-size:0.72rem;margin-bottom:2px">
-                    MAIN WRITER</div>
-                <div style="color:{D['text']}">{writer}</div>
-            </div>
-            <div>
-                <div style="color:{D['muted']};font-size:0.72rem;margin-bottom:2px">
-                    OCTA BUDGET</div>
-                <div style="color:{D['accent2']};font-weight:700">{fmt_eur(octa_b)}</div>
-            </div>
-            <div>
-                <div style="color:{D['muted']};font-size:0.72rem;margin-bottom:2px">
-                    TOTAL BUDGET</div>
-                <div style="color:{D['accent']};font-weight:700">{fmt_eur(tot_b)}</div>
-            </div>
-            <div>
-                <div style="color:{D['muted']};font-size:0.72rem;margin-bottom:2px">
-                    DURATION</div>
-                <div style="color:{D['text']}">{duration} months</div>
-            </div>
-            <div>
-                <div style="color:{D['muted']};font-size:0.72rem;margin-bottom:2px">
-                    SUCCESS RATE</div>
-                <div style="color:{D['text']}">{f'{float(sr):.1f}%' if sr else '—'}</div>
-            </div>
-        </div>
+    # Safe user values
+    e_status = esc(status);  e_pid   = esc(pid)
+    e_title  = esc(title[:70]) + ("…" if len(title) > 70 else "")
+    e_acr    = esc(acronym);  e_ddl   = esc(ddl)
+    e_resp   = esc(responsible); e_wri = esc(writer)
+    e_dur    = esc(str(duration))
+    sr_str   = f"{float(sr):.1f}%" if sr else "—"
+    share_pct = f"{min(octa_pct,100):.1f}"
 
-        <!-- Octa share bar -->
-        <div style="margin:0.8rem 0 0.5rem">
-            <div style="display:flex;justify-content:space-between;
-                        font-size:0.72rem;color:{D['muted']};margin-bottom:4px">
-                <span>Octa share of total budget</span>
-                <span style="color:{s_border}">{octa_pct:.1f}%</span>
-            </div>
-            <div style="background:rgba(255,255,255,0.1);border-radius:4px;height:6px">
-                <div style="background:{s_border};border-radius:4px;height:6px;
-                            width:{min(octa_pct,100):.1f}%"></div>
-            </div>
-        </div>
-
-        <!-- Links -->
-        {"<div style='margin-bottom:0.6rem'>" + " ".join(link_parts) + "</div>"
-          if link_parts else ""}
-
-        <!-- Consortium -->
-        {consortium_html}
-
-        <!-- Actions -->
-        {actions_div}
-
-        <!-- Comment -->
-        {comment_html}
-    </div>
-    """, unsafe_allow_html=True)
+    card_html = (
+        f"<div style='background:{s_bg};border:1px solid {s_border}66;"
+        f"border-left:6px solid {s_border};border-radius:12px;"
+        f"padding:1rem 1.3rem 1.1rem;margin:0.45rem 0 0.1rem'>"
+        # Header
+        f"<div style='display:flex;align-items:center;gap:0.6rem;"
+        f"flex-wrap:wrap;margin-bottom:0.75rem'>"
+        f"<span style='font-size:1.2rem'>{s_icon}</span>"
+        f"<span style='background:{s_border}30;color:{s_border};"
+        f"font-weight:700;font-size:0.7rem;text-transform:uppercase;"
+        f"letter-spacing:0.08em;padding:2px 9px;border-radius:20px;"
+        f"border:1px solid {s_border}66'>{e_status}</span>"
+        f"<span style='color:{s_border};font-weight:700;font-size:0.95rem;"
+        f"font-family:monospace'>{e_pid}</span>"
+        f"<span style='color:{D['muted']}'>·</span>"
+        f"<span style='color:{D['text']};font-size:0.9rem;font-weight:600;"
+        f"flex:1;min-width:0'>{e_title}</span>"
+        f"</div>"
+        # Data grid
+        f"<div style='display:grid;grid-template-columns:repeat(4,1fr);"
+        f"gap:0.6rem 1.2rem;font-size:0.84rem'>"
+        f"<div><div style='color:{D['muted']};font-size:0.72rem;margin-bottom:2px'>ACRONYM</div>"
+        f"<div style='color:{D['text']};font-weight:600'>{e_acr}</div></div>"
+        f"<div><div style='color:{D['muted']};font-size:0.72rem;margin-bottom:2px'>DEADLINE</div>"
+        f"<div style='color:{D['text']}'>{e_ddl}</div></div>"
+        f"<div><div style='color:{D['muted']};font-size:0.72rem;margin-bottom:2px'>RESPONSIBLE</div>"
+        f"<div style='color:{D['text']}'>{e_resp}</div></div>"
+        f"<div><div style='color:{D['muted']};font-size:0.72rem;margin-bottom:2px'>MAIN WRITER</div>"
+        f"<div style='color:{D['text']}'>{e_wri}</div></div>"
+        f"<div><div style='color:{D['muted']};font-size:0.72rem;margin-bottom:2px'>OCTA BUDGET</div>"
+        f"<div style='color:{D['accent2']};font-weight:700'>{fmt_eur(octa_b)}</div></div>"
+        f"<div><div style='color:{D['muted']};font-size:0.72rem;margin-bottom:2px'>TOTAL BUDGET</div>"
+        f"<div style='color:{D['accent']};font-weight:700'>{fmt_eur(tot_b)}</div></div>"
+        f"<div><div style='color:{D['muted']};font-size:0.72rem;margin-bottom:2px'>DURATION</div>"
+        f"<div style='color:{D['text']}'>{e_dur} months</div></div>"
+        f"<div><div style='color:{D['muted']};font-size:0.72rem;margin-bottom:2px'>SUCCESS RATE</div>"
+        f"<div style='color:{D['text']}'>{esc(sr_str)}</div></div>"
+        f"</div>"
+        # Share bar
+        f"<div style='margin:0.8rem 0 0.5rem'>"
+        f"<div style='display:flex;justify-content:space-between;"
+        f"font-size:0.72rem;color:{D['muted']};margin-bottom:4px'>"
+        f"<span>Octa share of total budget</span>"
+        f"<span style='color:{s_border}'>{share_pct}%</span></div>"
+        f"<div style='background:rgba(255,255,255,0.1);border-radius:4px;height:6px'>"
+        f"<div style='background:{s_border};border-radius:4px;height:6px;"
+        f"width:{share_pct}%'></div></div></div>"
+        # Links
+        + (f"<div style='margin-bottom:0.6rem'>" + " ".join(link_parts) + "</div>"
+           if link_parts else "")
+        # Consortium
+        + consortium_html
+        # Actions
+        + actions_div
+        # Comment
+        + comment_html
+        + "</div>"
+    )
+    st.markdown(card_html, unsafe_allow_html=True)
 
     # Edit button sits flush below each card
     if st.button(f"✏️ Edit {pid}", key=f"edit_{pid}"):
