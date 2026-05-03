@@ -10,11 +10,12 @@ from datetime import datetime, timezone
 
 from modules.auth import require_auth, is_admin
 from modules.database import db
-from modules.ui_helpers import inject_css, page_header, section_label, DARK
+from modules.ui_helpers import sidebar_nav, inject_css, page_header, section_label, DARK
 
 st.set_page_config(page_title="Admin — Octa Platform",
                    page_icon="🛡️", layout="wide")
 inject_css()
+sidebar_nav()
 require_auth()
 
 if not is_admin():
