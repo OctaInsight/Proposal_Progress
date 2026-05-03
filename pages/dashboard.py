@@ -229,9 +229,10 @@ if not dl_df.empty:
     dl_df = dl_df[dl_df["deadline_dt"] >= pd.Timestamp.today()]
     dl_df = dl_df.sort_values("deadline_dt").head(12)
     if not dl_df.empty:
+        dl_df["start_date"] = pd.Timestamp.today()   # scalar → column
         fig_dl = px.timeline(
             dl_df,
-            x_start=pd.Timestamp.today(),
+            x_start="start_date",
             x_end="deadline_dt",
             y="proposal_id",
             color="status",
