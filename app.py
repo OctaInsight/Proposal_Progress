@@ -11,7 +11,7 @@ st.set_page_config(
     page_title=APP_NAME,
     page_icon=APP_ICON,
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
 )
 inject_css()
 
@@ -19,7 +19,7 @@ inject_css()
 if not is_authenticated():
     st.switch_page("pages/login.py")
 
-    sidebar_nav()
+sidebar_nav()
 
 # ── Google Sheet → DB sync (once per session) ─────────────────────────────────
 if "synced" not in st.session_state:
