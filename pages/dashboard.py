@@ -9,13 +9,14 @@ import plotly.express as px
 import pandas as pd
 
 from modules.database import get_all_proposals
-from modules.ui_helpers import (inject_css, page_header, section_label,
+from modules.ui_helpers import (sidebar_nav,inject_css, page_header, section_label,
                                  status_badge, stat_box, link_html, DARK)
 from config import STATUS_OPTIONS, DARK as D
 
 st.set_page_config(page_title="Dashboard — Octa Proposals",
                    page_icon="📊", layout="wide")
 inject_css()
+sidebar_nav()
 
 if st.button("← Back to Home", key="back_home"):
     st.switch_page("app.py")
@@ -433,6 +434,3 @@ for _, row in filtered.iterrows():
             st.switch_page("pages/proposal_form.py")
 
     st.markdown("<div style='margin-bottom:4px'></div>", unsafe_allow_html=True)
-
-
-
