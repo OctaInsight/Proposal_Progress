@@ -81,8 +81,8 @@ def _safe_date(v):
 def row_to_db(row: dict) -> dict:
     """
     Convert flat Google Sheet row → DB-shaped dict.
-    Handles column name variants between old sheet headers and the
-    standardised names used by the app (case-insensitive aliases).
+    Primary column names match the fixed Excel file exactly.
+    Aliases kept as fallback for any manually-edited rows.
     Also strips €, £, $, % signs so numeric fields parse cleanly.
     """
 
@@ -90,15 +90,15 @@ def row_to_db(row: dict) -> dict:
         """Return first non-empty value found across the given key aliases."""
         for k in keys:
             v = row.get(k, "")
-            if v and str(v).strip():
+            if v and str(v).strip() not in ("", "nan", "NaT"):
                 return str(v).strip()
         return ""
 
     def _num(*keys):
         """Parse first matching key as a number, stripping currency/% symbols."""
         raw = _pick(*keys)
-        cleaned = raw.replace("€","").replace("£","").replace("$","") \
-                     .replace("%","").replace(",","").strip()
+        cleaned = (raw.replace("€","").replace("£","").replace("$","")
+                      .replace("%","").replace(",","").strip())
         return _safe_num(cleaned)
 
     # Collect all "Partner N" / "Associated N" columns dynamically — no limit
@@ -118,29 +118,16 @@ def row_to_db(row: dict) -> dict:
         "action_haseeb":      _pick("Action: Haseeb"),
         "action_other":       _pick("Action: Other"),
         "comment":            _pick("Comment"),
-        # PES — sheet uses "PES fund request" (lowercase r)
-        "pes_fund_request":   _pick("PES Fund Request", "PES fund request",
-                                    "PES Fund request"),
+        "pes_fund_request":   _pick("PES Fund Request", "PES fund request"),
         "status":             _pick("Status") or "Planned",
-        # Budget — sheet omits "(EUR)", also strip € if present
-        "octa_budget":        _num("Octa Budget (EUR)", "Octa Budget",
-                                   "octa_budget"),
-        "total_budget":       _num("Total Budget (EUR)", "Total Budget",
-                                   "total_budget"),
+        "octa_budget":        _num("Octa Budget (EUR)", "Octa Budget"),
+        "total_budget":       _num("Total Budget (EUR)", "Total Budget"),
         "link_cloudearti":    _pick("Link to CloudEARTHi"),
-        # Success rate — sheet has typo "Sucess Rate" and may include %
-        "success_rate":       _num("Success Rate (%)", "Sucess Rate",
-                                   "Success Rate", "success_rate"),
-        # Duration — sheet omits "(months)"
-        "duration_months":    int(_num("Duration (months)", "Duration",
-                                       "duration_months") or 0),
-        # Support letter — sheet uses "Support letter"
-        "mandate_letter":     _pick("Mandate/Support Letter", "Support letter",
-                                    "Support Letter", "Mandate letter"),
+        "success_rate":       _num("Success Rate (%)", "Sucess Rate", "Success Rate"),
+        "duration_months":    int(_num("Duration (months)", "Duration") or 0),
+        "mandate_letter":     _pick("Mandate/Support Letter", "Support letter"),
         "responsible_person": _pick("Responsible Person"),
-        # Main writer — sheet uses "Main Writer Person"
-        "main_writer":        _pick("Main Writer", "Main Writer Person",
-                                    "Main writer person"),
+        "main_writer":        _pick("Main Writer", "Main Writer Person"),
         "form_id":            _pick("Form ID"),
         "submission_id":      _pick("Submission ID"),
         "acronym":            _pick("Acronym"),
@@ -148,9 +135,7 @@ def row_to_db(row: dict) -> dict:
         "call":               _pick("Call"),
         "topic":              _pick("Topic"),
         "type_of_action":     _pick("Type of Action"),
-        # Link to call — sheet uses lowercase "link to call"
-        "link_to_call":       _pick("Link to Call", "link to call",
-                                    "Link to the Call"),
+        "link_to_call":       _pick("Link to Call", "link to call"),
         "google_drive_link":  _pick("Google Drive Link"),
         "deadline":           _safe_date(_pick("Deadline")),
         "submission_date":    _safe_date(_pick("Submission Date")),
