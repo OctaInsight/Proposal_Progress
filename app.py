@@ -4,7 +4,7 @@ Landing page with sync-on-load + 3 navigation buttons.
 """
 import streamlit as st
 from config import APP_NAME, APP_ICON, DARK
-from modules.ui_helpers import inject_css
+from modules.ui_helpers import inject_css, sidebar_nav
 from modules.auth import is_authenticated, clear_session, is_admin
 
 st.set_page_config(
@@ -19,23 +19,7 @@ inject_css()
 if not is_authenticated():
     st.switch_page("pages/login.py")
 
-# ── Top bar: user info + logout ───────────────────────────────────────────────
-uname = st.session_state.get("first_name") or st.session_state.get("username","")
-tb1, tb2, tb3 = st.columns([4, 1, 1])
-with tb2:
-    if is_admin():
-        if st.button("🛡️ Admin Panel", use_container_width=True):
-            st.switch_page("pages/admin.py")
-with tb3:
-    if st.button("🚪 Logout", use_container_width=True):
-        clear_session()
-        st.switch_page("pages/login.py")
-
-st.markdown(
-    f"<p style='color:{DARK["muted"]};font-size:0.8rem;margin:-0.5rem 0 0.5rem'>"
-    f"Logged in as <strong style='color:{DARK["text"]}'>{uname}</strong></p>",
-    unsafe_allow_html=True
-)
+    sidebar_nav()
 
 # ── Google Sheet → DB sync (once per session) ─────────────────────────────────
 if "synced" not in st.session_state:
