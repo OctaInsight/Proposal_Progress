@@ -8,6 +8,7 @@ import plotly.graph_objects as go
 import plotly.express as px
 import pandas as pd
 
+from modules.auth import require_auth
 from modules.database import get_all_proposals
 from modules.ui_helpers import (sidebar_nav,inject_css, page_header, section_label,
                                  status_badge, stat_box, link_html, DARK)
