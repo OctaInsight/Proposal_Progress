@@ -5,6 +5,7 @@ View all partners, add new ones, edit existing with multiple contacts.
 import streamlit as st
 import json
 
+from modules.auth import require_auth
 from modules.database import get_all_partners, upsert_partner, delete_partner
 from modules.ui_helpers import sidebar_nav, inject_css, page_header, section_label, DARK
 from config import PARTNER_TYPES, COUNTRIES
