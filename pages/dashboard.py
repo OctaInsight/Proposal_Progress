@@ -18,6 +18,7 @@ st.set_page_config(page_title="Dashboard — Octa Proposals",
                    page_icon="📊", layout="wide")
 inject_css()
 sidebar_nav()
+require_auth()
 
 if st.button("← Back to Home", key="back_home"):
     st.switch_page("app.py")
