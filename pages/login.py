@@ -4,7 +4,7 @@ Sign In · Register · Reset Password
 No email required — all flows work on-screen.
 """
 import streamlit as st
-from modules.ui_helpers import inject_css, DARK
+from modules.ui_helpers import inject_css, sidebar_nav, DARK
 from modules.auth import (
     login_user, register_user, set_session, is_authenticated,
     generate_reset_token, reset_password_with_token,
@@ -17,6 +17,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 inject_css()
+sidebar_nav()
 
 if is_authenticated():
     st.switch_page("app.py")
