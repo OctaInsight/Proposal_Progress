@@ -6,12 +6,13 @@ import streamlit as st
 import json
 
 from modules.database import get_all_partners, upsert_partner, delete_partner
-from modules.ui_helpers import inject_css, page_header, section_label, DARK
+from modules.ui_helpers import sidebar_nav, inject_css, page_header, section_label, DARK
 from config import PARTNER_TYPES, COUNTRIES
 
 st.set_page_config(page_title="Partners — Octa Proposals",
                    page_icon="🤝", layout="wide")
 inject_css()
+sidebar_nav()
 
 if st.button("← Back to Home", key="back"):
     st.switch_page("app.py")
