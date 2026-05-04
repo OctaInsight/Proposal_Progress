@@ -9,6 +9,7 @@ from modules.auth import (
     login_user, register_user, set_session, is_authenticated,
     generate_reset_token, reset_password_with_token,
 )
+from modules.database import get_all_partners
 
 st.set_page_config(
     page_title="Login — Octa Platform",
@@ -65,7 +66,6 @@ with tab_login:
 with tab_register:
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Info box — no email mentioned
     st.markdown(f"""
     <div style="background:rgba(0,188,212,0.1);border:1px solid rgba(0,188,212,0.3);
                 border-left:4px solid {DARK['accent']};border-radius:10px;
@@ -79,12 +79,13 @@ with tab_register:
     </div>
     """, unsafe_allow_html=True)
 
+    # Name fields
     rc1, rc2 = st.columns(2)
     with rc1:
         reg_first = st.text_input("First name *", key="reg_first",
                                    placeholder="Maria")
     with rc2:
-        reg_last  = st.text_input("Last name *",  key="reg_last",
+        reg_last  = st.text_input("Last name *", key="reg_last",
                                    placeholder="Rossi")
 
     reg_username = st.text_input("Username *", key="reg_uname",
@@ -92,6 +93,46 @@ with tab_register:
     reg_email    = st.text_input("Email address *", key="reg_email",
                                   placeholder="you@example.com")
 
+    # ── Organisation dropdown ─────────────────────────────────────────────────
+    OTHER_ORG = "➕  My organisation is not in the list"
+    try:
+        partners_data = get_all_partners()
+        partner_names = [p["full_name"] for p in partners_data if p.get("full_name")]
+    except Exception:
+        partner_names = []
+
+    org_options = ["— Select your organisation —"] + sorted(partner_names) + [OTHER_ORG]
+
+    reg_org_select = st.selectbox(
+        "Organisation / Partner *",
+        options=org_options,
+        key="reg_org_select",
+        help="Select your organisation from the list. If not listed, choose the last option."
+    )
+
+    # Show free-text input if "not in list" selected
+    reg_org_custom = ""
+    if reg_org_select == OTHER_ORG:
+        reg_org_custom = st.text_input(
+            "Enter your organisation name *",
+            key="reg_org_custom",
+            placeholder="Full name of your organisation",
+        )
+        st.markdown(
+            f"<p style='color:{DARK['muted']};font-size:0.8rem;margin-top:-0.4rem'>"
+            f"The admin will add your organisation to the partners list after approval.</p>",
+            unsafe_allow_html=True
+        )
+
+    # Resolve final organisation value
+    def _org_value():
+        if reg_org_select == OTHER_ORG:
+            return reg_org_custom.strip()
+        if reg_org_select.startswith("—"):
+            return ""
+        return reg_org_select
+
+    # Password
     rc3, rc4 = st.columns(2)
     with rc3:
         reg_pass  = st.text_input("Password *", type="password",
@@ -103,15 +144,23 @@ with tab_register:
                                    placeholder="Repeat password")
 
     st.markdown("<br>", unsafe_allow_html=True)
+
     if st.button("Submit Registration →", type="primary",
                  use_container_width=True, key="btn_register"):
+        org_val = _org_value()
+
         if reg_pass != reg_pass2:
             st.error("❌ Passwords do not match.")
         elif not all([reg_first, reg_last, reg_username, reg_email, reg_pass]):
             st.warning("Please fill in all required fields.")
+        elif reg_org_select.startswith("—"):
+            st.warning("Please select your organisation.")
+        elif reg_org_select == OTHER_ORG and not reg_org_custom.strip():
+            st.warning("Please enter your organisation name.")
         else:
             ok, msg, user = register_user(
-                reg_email, reg_username, reg_first, reg_last, reg_pass
+                reg_email, reg_username, reg_first, reg_last, reg_pass,
+                organisation=org_val
             )
             if ok:
                 st.markdown(f"""
@@ -125,6 +174,7 @@ with tab_register:
                         Registration submitted!
                     </strong><br>
                     <span style="color:{DARK['text']};font-size:0.88rem">
+                        Organisation: <strong>{org_val or '—'}</strong><br>
                         Your account is now <strong>pending admin approval</strong>.<br>
                         Come back to the <strong>Sign In</strong> tab once you've been notified.
                     </span>
@@ -148,7 +198,6 @@ with tab_reset:
     </div>
     """, unsafe_allow_html=True)
 
-    # ── Step 1: generate token ────────────────────────────────────────────────
     st.markdown("**Step 1 — Get your reset token**")
     fp_email = st.text_input("Your registered email", key="fp_email",
                               placeholder="you@example.com")
@@ -179,15 +228,12 @@ with tab_reset:
 
     st.markdown("<br>**Step 2 — Set your new password**")
 
-    # ── Step 2: use token ─────────────────────────────────────────────────────
     fp_token  = st.text_input("Paste reset token", key="fp_token",
                                placeholder="Paste the token from above")
-    fp_newpw  = st.text_input("New password", type="password",
-                               key="fp_newpw",
+    fp_newpw  = st.text_input("New password", type="password", key="fp_newpw",
                                placeholder="At least 8 characters")
     fp_newpw2 = st.text_input("Confirm new password", type="password",
-                               key="fp_newpw2",
-                               placeholder="Repeat new password")
+                               key="fp_newpw2", placeholder="Repeat new password")
 
     if st.button("✅ Set New Password", type="primary",
                  use_container_width=True, key="btn_reset"):
@@ -203,7 +249,6 @@ with tab_reset:
             else:
                 st.error(f"❌ {msg}")
 
-# Footer
 st.markdown(f"""
 <div style="text-align:center;margin-top:2.5rem;
             color:{DARK['muted']};font-size:0.72rem">
