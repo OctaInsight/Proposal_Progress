@@ -8,8 +8,8 @@ import plotly.graph_objects as go
 import plotly.express as px
 import pandas as pd
 
-from modules.auth import require_auth
 from modules.database import get_all_proposals
+from modules.auth import require_auth
 from modules.ui_helpers import (sidebar_nav,inject_css, page_header, section_label,
                                  status_badge, stat_box, link_html, DARK)
 from config import STATUS_OPTIONS, DARK as D
@@ -234,23 +234,83 @@ if not dl_df.empty:
     dl_df = dl_df[dl_df["deadline_dt"] >= pd.Timestamp.today()]
     dl_df = dl_df.sort_values("deadline_dt").head(12)
     if not dl_df.empty:
-        dl_df["start_date"] = pd.Timestamp.today()   # scalar → column
-        fig_dl = px.timeline(
-            dl_df,
-            x_start="start_date",
-            x_end="deadline_dt",
-            y="proposal_id",
-            color="status",
-            color_discrete_map=status_colors,
-            template="plotly_dark",
-            labels={"proposal_id": ""},
-            hover_data=["proposal_title", "acronym", "responsible_person"],
+        dl_df["start_date"] = pd.Timestamp.today()
+
+        # ── Use acronym if available, else proposal_id ──────────────────────
+        dl_df["display_label"] = dl_df.apply(
+            lambda r: r["acronym"].strip()
+                      if str(r.get("acronym", "")).strip()
+                      else str(r.get("proposal_id", "")),
+            axis=1
         )
+
+        # ── PES fund flag ────────────────────────────────────────────────────
+        PES_ENTITLED = "Entitled to PES fund"
+        dl_df["pes_flag"] = dl_df["pes_fund_request"].apply(
+            lambda v: "Entitled to PES fund" if str(v).strip() == PES_ENTITLED
+                      else "Standard"
+        )
+
+        # ── Bar colour: PES = orange, Standard = use status colour ──────────
+        def _bar_color(row):
+            if row["pes_flag"] == "Entitled to PES fund":
+                return D["accent2"]          # orange for PES
+            return status_colors.get(row["status"], D["muted"])
+
+        dl_df["bar_color"] = dl_df.apply(_bar_color, axis=1)
+
+        # ── Build figure manually (px.timeline doesn't support per-bar color)─
+        fig_dl = go.Figure()
+
+        today = pd.Timestamp.today()
+
+        for _, r in dl_df.iterrows():
+            days_left = (r["deadline_dt"] - today).days
+            is_pes    = r["pes_flag"] == "Entitled to PES fund"
+            hover_txt = (
+                f"<b>{r['display_label']}</b><br>"
+                f"Title: {r.get('proposal_title','')[:50]}<br>"
+                f"Deadline: {str(r['deadline_dt'])[:10]}<br>"
+                f"Days left: {days_left}<br>"
+                f"Responsible: {r.get('responsible_person','—')}<br>"
+                + ("⭐ Entitled to PES fund" if is_pes else "")
+            )
+            fig_dl.add_trace(go.Bar(
+                name      = r["pes_flag"],
+                x         = [days_left],
+                y         = [r["display_label"]],
+                orientation = "h",
+                marker_color = r["bar_color"],
+                marker_line_width = 0,
+                opacity   = 0.9,
+                text      = "⭐ PES fund" if is_pes else "",
+                textposition = "inside",
+                textfont  = dict(color="white", size=11),
+                hovertemplate = hover_txt + "<extra></extra>",
+                showlegend = is_pes,   # only PES entries appear in legend
+                legendgroup = r["pes_flag"],
+            ))
+
         fig_dl.update_layout(
-            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
-            height=max(180, len(dl_df) * 38),
-            margin=dict(l=0, r=0, t=10, b=0),
-            font_color=D["text"],
+            paper_bgcolor = "rgba(0,0,0,0)",
+            plot_bgcolor  = "rgba(0,0,0,0)",
+            height        = max(200, len(dl_df) * 40),
+            margin        = dict(l=0, r=0, t=10, b=0),
+            font_color    = D["text"],
+            barmode       = "overlay",
+            showlegend    = True,
+            legend        = dict(
+                orientation = "h", yanchor = "bottom", y = 1.02,
+                xanchor = "right", x = 1,
+                font = dict(color=D["text"], size=11),
+                bgcolor = "rgba(0,0,0,0)",
+            ),
+            xaxis = dict(
+                title     = "Days until deadline",
+                gridcolor = "rgba(255,255,255,0.05)",
+                ticksuffix = "d",
+            ),
+            yaxis = dict(showgrid=False),
         )
         st.plotly_chart(fig_dl, use_container_width=True)
     else:
@@ -436,3 +496,6 @@ for _, row in filtered.iterrows():
             st.switch_page("pages/proposal_form.py")
 
     st.markdown("<div style='margin-bottom:4px'></div>", unsafe_allow_html=True)
+
+
+
