@@ -42,7 +42,8 @@ def get_user_by_id(uid: int) -> dict | None:
 # ── Registration ──────────────────────────────────────────────────────────────
 
 def register_user(email: str, username: str, first_name: str,
-                  last_name: str, password: str) -> tuple:
+                  last_name: str, password: str,
+                  organisation: str = "") -> tuple:
     """Returns (ok, message, user|None)."""
     if len(password) < 8:
         return False, "Password must be at least 8 characters.", None
@@ -65,6 +66,7 @@ def register_user(email: str, username: str, first_name: str,
             "status":        "pending",
             "apps_access":   [],
             "role":          "user",
+            "organisation":  organisation.strip(),
         }).execute()
         user = resp.data[0] if resp.data else None
         return True, "Registration submitted successfully.", user
