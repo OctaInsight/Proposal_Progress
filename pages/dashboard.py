@@ -245,69 +245,86 @@ if not dl_df.empty:
         )
 
         # ── PES fund flag ────────────────────────────────────────────────────
-        PES_ENTITLED = "Entitled to PES fund"
+        PES_COLORS = {
+            "Entitled to PES fund":              D["accent2"],   # orange
+            "PES fund application submitted":    D["success"],   # green
+        }
+        PES_LABELS = {
+            "Entitled to PES fund":              "⭐ Entitled to PES fund",
+            "PES fund application submitted":    "✅ PES submitted",
+        }
+
         dl_df["pes_flag"] = dl_df["pes_fund_request"].apply(
-            lambda v: "Entitled to PES fund" if str(v).strip() == PES_ENTITLED
-                      else "Standard"
+            lambda v: str(v).strip() if str(v).strip() in PES_COLORS else "Standard"
         )
 
-        # ── Bar colour: PES = orange, Standard = use status colour ──────────
         def _bar_color(row):
-            if row["pes_flag"] == "Entitled to PES fund":
-                return D["accent2"]          # orange for PES
+            if row["pes_flag"] in PES_COLORS:
+                return PES_COLORS[row["pes_flag"]]
             return status_colors.get(row["status"], D["muted"])
 
         dl_df["bar_color"] = dl_df.apply(_bar_color, axis=1)
 
-        # ── Build figure manually (px.timeline doesn't support per-bar color)─
+        # ── Build figure — one trace per PES category to get clean legend ───
         fig_dl = go.Figure()
+        today  = pd.Timestamp.today()
 
-        today = pd.Timestamp.today()
+        # Track which legend groups have already been added
+        shown_legend = set()
 
         for _, r in dl_df.iterrows():
-            days_left = (r["deadline_dt"] - today).days
-            is_pes    = r["pes_flag"] == "Entitled to PES fund"
+            days_left  = (r["deadline_dt"] - today).days
+            pes        = r["pes_flag"]
+            is_special = pes in PES_COLORS
+            lg         = pes   # legend group key
+
             hover_txt = (
                 f"<b>{r['display_label']}</b><br>"
-                f"Title: {r.get('proposal_title','')[:50]}<br>"
+                f"Title: {str(r.get('proposal_title',''))[:50]}<br>"
                 f"Deadline: {str(r['deadline_dt'])[:10]}<br>"
                 f"Days left: {days_left}<br>"
-                f"Responsible: {r.get('responsible_person','—')}<br>"
-                + ("⭐ Entitled to PES fund" if is_pes else "")
+                f"Responsible: {r.get('responsible_person','—')}"
+                + (f"<br>{PES_LABELS[pes]}" if is_special else "")
             )
+
+            # Show legend entry only once per group
+            show_in_legend = is_special and (lg not in shown_legend)
+            if show_in_legend:
+                shown_legend.add(lg)
+
             fig_dl.add_trace(go.Bar(
-                name      = r["pes_flag"],
-                x         = [days_left],
-                y         = [r["display_label"]],
-                orientation = "h",
+                name         = PES_LABELS.get(pes, "Standard"),
+                x            = [days_left],
+                y            = [r["display_label"]],
+                orientation  = "h",
                 marker_color = r["bar_color"],
                 marker_line_width = 0,
-                opacity   = 0.9,
-                text      = "⭐ PES fund" if is_pes else "",
+                opacity      = 0.92,
+                text         = PES_LABELS[pes] if is_special else "",
                 textposition = "inside",
-                textfont  = dict(color="white", size=11),
+                textfont     = dict(color="white", size=14, family="Arial"),
                 hovertemplate = hover_txt + "<extra></extra>",
-                showlegend = is_pes,   # only PES entries appear in legend
-                legendgroup = r["pes_flag"],
+                showlegend   = show_in_legend,
+                legendgroup  = lg,
             ))
 
         fig_dl.update_layout(
             paper_bgcolor = "rgba(0,0,0,0)",
             plot_bgcolor  = "rgba(0,0,0,0)",
-            height        = max(200, len(dl_df) * 40),
-            margin        = dict(l=0, r=0, t=10, b=0),
+            height        = max(200, len(dl_df) * 42),
+            margin        = dict(l=0, r=0, t=36, b=0),
             font_color    = D["text"],
             barmode       = "overlay",
             showlegend    = True,
             legend        = dict(
                 orientation = "h", yanchor = "bottom", y = 1.02,
                 xanchor = "right", x = 1,
-                font = dict(color=D["text"], size=11),
+                font    = dict(color=D["text"], size=12),
                 bgcolor = "rgba(0,0,0,0)",
             ),
             xaxis = dict(
-                title     = "Days until deadline",
-                gridcolor = "rgba(255,255,255,0.05)",
+                title      = "Days until deadline",
+                gridcolor  = "rgba(255,255,255,0.05)",
                 ticksuffix = "d",
             ),
             yaxis = dict(showgrid=False),
