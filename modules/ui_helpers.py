@@ -337,6 +337,8 @@ def sidebar_nav():
         st.page_link("pages/dashboard.py",         label="📊  Dashboard")
         st.page_link("pages/partners.py",          label="🤝  Partners")
         st.page_link("pages/proposal_form.py",     label="📝  New Proposal")
+        st.page_link("pages/assign_task.py",        label="📌  Assign Task")
+        st.page_link("pages/my_tasks.py",           label="✅  My Tasks")
 
         # ── Admin section (admin only) ────────────────────────────────────────
         if is_admin_user:
