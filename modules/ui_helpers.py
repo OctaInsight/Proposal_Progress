@@ -337,8 +337,11 @@ def sidebar_nav():
         st.page_link("pages/dashboard.py",         label="📊  Dashboard")
         st.page_link("pages/partners.py",          label="🤝  Partners")
         st.page_link("pages/proposal_form.py",     label="📝  New Proposal")
-        st.page_link("pages/assign_task.py",        label="📌  Assign Task")
-        st.page_link("pages/my_tasks.py",           label="✅  My Tasks")
+
+        st.markdown("<hr style='border:none;border-top:1px solid rgba(255,255,255,0.12);margin:0.5rem 0'>", unsafe_allow_html=True)
+        st.markdown(f"<div style='font-size:0.68rem;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:{DARK["muted"]};margin-bottom:0.3rem'>Tasks</div>", unsafe_allow_html=True)
+        st.page_link("pages/assign_task.py", label="📌  Assign Task")
+        st.page_link("pages/my_tasks.py",    label="✅  My Tasks")
 
         # ── Admin section (admin only) ────────────────────────────────────────
         if is_admin_user:
